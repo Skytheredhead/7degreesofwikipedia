@@ -172,10 +172,8 @@ interface BackendReadinessResponse {
   };
 }
 
-const DEFAULT_BACKEND_URL = "http://127.0.0.1:3030";
-
 function backendBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_WIKI_BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_WIKI_API_BASE_URL ?? "").replace(/\/+$/, "");
 }
 
 function stripNodeDisambiguation(title: string): string {
