@@ -406,12 +406,14 @@ export async function runPathSearchProgressive(
 export async function fetchReadiness(): Promise<ReadinessState> {
   const payload = await apiFetch<BackendReadinessResponse>("/api/readiness");
   return {
+    status: payload.ready ? "ready" : "loading",
     ready: payload.ready,
     graphLoaded: payload.readiness.graphLoaded,
     preloadComplete: payload.readiness.preloadComplete,
     searchReady: payload.readiness.searchReady,
     buildReady: payload.build.ready,
-    totalNodes: payload.runtime?.counts?.canonicalNodes ?? 0
+    totalNodes: payload.runtime?.counts?.canonicalNodes ?? 0,
+    errorMessage: null
   };
 }
 

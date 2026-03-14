@@ -47,12 +47,14 @@ function createEmptyStats(): StatData {
 
 function createUnavailableReadiness(): ReadinessState {
   return {
+    status: 'unreachable',
     ready: false,
     graphLoaded: false,
     preloadComplete: false,
     searchReady: false,
     buildReady: false,
     totalNodes: 0,
+    errorMessage: 'Frontend could not reach the backend API.',
   };
 }
 
@@ -91,7 +93,14 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
   text: string | null;
   tone: 'default' | 'error';
 } {
-  if (readiness && !readiness.ready) {
+  if (readiness?.status === 'unreachable') {
+    return {
+      text: readiness.errorMessage ?? 'Frontend could not reach the backend API.',
+      tone: 'error',
+    };
+  }
+
+  if (readiness?.status === 'loading') {
     return {
       text: 'Backend is still loading the graph into RAM.',
       tone: 'default',
@@ -562,20 +571,32 @@ export default function Home() {
   const searchRunIdRef = useRef(0);
 
   const refreshBackendState = useCallback(async () => {
-    try {
-      const [statsOverview, nextReadiness] = await Promise.all([
-        fetchStatsOverview(),
-        fetchReadiness(),
-      ]);
-      setStats(statsOverview.stats);
-      setRecentSearches(statsOverview.recentSearches);
-      setReadiness(nextReadiness);
-    } catch (error) {
-      console.error('Backend state refresh failed:', error);
+    const [statsResult, readinessResult] = await Promise.allSettled([
+      fetchStatsOverview(),
+      fetchReadiness(),
+    ]);
+
+    if (statsResult.status === 'fulfilled') {
+      setStats(statsResult.value.stats);
+      setRecentSearches(statsResult.value.recentSearches);
+    } else {
+      console.error('Stats refresh failed:', statsResult.reason);
       setStats(createEmptyStats());
       setRecentSearches([]);
-      setReadiness(createUnavailableReadiness());
     }
+
+    if (readinessResult.status === 'fulfilled') {
+      setReadiness(readinessResult.value);
+      return;
+    }
+
+    console.error('Readiness refresh failed:', readinessResult.reason);
+    const fallback = createUnavailableReadiness();
+    fallback.errorMessage =
+      readinessResult.reason instanceof Error
+        ? readinessResult.reason.message
+        : 'Frontend could not reach the backend API.';
+    setReadiness(fallback);
   }, []);
 
   useEffect(() => {
@@ -583,7 +604,7 @@ export default function Home() {
   }, [refreshBackendState]);
 
   useEffect(() => {
-    if (readiness?.ready) {
+    if (readiness?.status === 'ready') {
       return;
     }
 
@@ -592,7 +613,7 @@ export default function Home() {
     }, 2000);
 
     return () => window.clearInterval(intervalId);
-  }, [readiness?.ready, refreshBackendState]);
+  }, [readiness?.status, refreshBackendState]);
 
   useEffect(() => {
     const element = graphViewportRef.current;
@@ -932,7 +953,7 @@ export default function Home() {
               onSearch={handleSearch}
               onSwap={handleSwap}
               isLoading={searchState === 'loading'}
-              disabled={readiness ? !readiness.ready : false}
+              disabled={readiness ? readiness.status !== 'ready' : false}
               helperText={helper.text}
               helperTone={helper.tone}
               getSuggestions={fetchArticleSuggestions}
