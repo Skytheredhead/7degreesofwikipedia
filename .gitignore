@@ -1,0 +1,16 @@
+node_modules/
+frontend/node_modules/
+frontend/.next/
+dist/
+.build/
+artifacts/
+data/
+.npm-cache/
+.DS_Store
+frontend/.DS_Store
+*.tsbuildinfo
+.env
+.env.*
+.vercel/
+coverage/
+*.log
