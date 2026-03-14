@@ -136,6 +136,11 @@ function InputField({
   const [suggestionsQuery, setSuggestionsQuery] = useState('');
   const internalInputRef = useRef<HTMLInputElement>(null);
   const inputRef = forwardedRef ?? internalInputRef;
+  const latestValueRef = useRef(value);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     if (disabled || value.trim().length < 2) {
@@ -172,6 +177,43 @@ function InputField({
     setSuggestions([]);
     setSuggestionsQuery('');
     inputRef.current?.blur();
+  };
+
+  const commitBestSuggestion = async (rawValue: string) => {
+    const trimmed = rawValue.trim();
+    if (disabled || trimmed.length < 2) {
+      return;
+    }
+
+    const normalizedQuery = trimmed.toLowerCase();
+    const currentValue = latestValueRef.current.trim().toLowerCase();
+    if (currentValue !== normalizedQuery) {
+      return;
+    }
+
+    let bestSuggestion: ArticleSuggestion | undefined;
+
+    if (suggestionsQuery === normalizedQuery) {
+      bestSuggestion = suggestions[0];
+    } else {
+      try {
+        bestSuggestion = (await getSuggestions(trimmed))[0];
+      } catch {
+        return;
+      }
+    }
+
+    if (!bestSuggestion?.canonicalTitle) {
+      return;
+    }
+
+    if (latestValueRef.current.trim().toLowerCase() !== normalizedQuery) {
+      return;
+    }
+
+    if (bestSuggestion.canonicalTitle !== latestValueRef.current) {
+      onChange(bestSuggestion.canonicalTitle);
+    }
   };
 
   const commitAndBlur = (nextValue?: string) => {
@@ -223,7 +265,10 @@ function InputField({
             setFocused(true);
             onFocusInput?.();
           }}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          onBlur={(event) => {
+            window.setTimeout(() => setFocused(false), 150);
+            void commitBestSuggestion(event.currentTarget.value);
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
