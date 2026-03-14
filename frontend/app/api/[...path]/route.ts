@@ -44,16 +44,28 @@ function copyRequestHeaders(request: NextRequest): Headers {
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[] = []): Promise<Response> {
-  const init: RequestInit & { duplex?: "half" } = {
+  const body = BODYLESS_METHODS.has(request.method) ? undefined : await request.arrayBuffer();
+  const init: RequestInit = {
     method: request.method,
     headers: copyRequestHeaders(request),
-    body: BODYLESS_METHODS.has(request.method) ? undefined : request.body,
-    duplex: BODYLESS_METHODS.has(request.method) ? undefined : "half",
+    body: body && body.byteLength > 0 ? body : undefined,
     redirect: "manual",
     cache: "no-store"
   };
 
-  const upstreamResponse = await fetch(buildUpstreamUrl(pathSegments, request.nextUrl.search), init);
+  let upstreamResponse: Response;
+  try {
+    upstreamResponse = await fetch(buildUpstreamUrl(pathSegments, request.nextUrl.search), init);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upstream request failed.";
+    return Response.json(
+      {
+        error: "upstream_fetch_failed",
+        message
+      },
+      { status: 502 }
+    );
+  }
 
   const headers = new Headers();
   for (const [key, value] of upstreamResponse.headers.entries()) {
