@@ -172,8 +172,25 @@ interface BackendReadinessResponse {
   };
 }
 
+const DEFAULT_PUBLIC_API_BASE_URL = "https://7wikiapi.skylarenns.com";
+
 function backendBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_WIKI_API_BASE_URL ?? "").replace(/\/+$/, "");
+  const explicitBaseUrl = (
+    process.env.NEXT_PUBLIC_WIKI_API_BASE_URL ?? process.env.NEXT_PUBLIC_WIKI_BACKEND_URL ?? ""
+  ).replace(/\/+$/, "");
+
+  if (explicitBaseUrl) {
+    return explicitBaseUrl;
+  }
+
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "";
+    }
+  }
+
+  return DEFAULT_PUBLIC_API_BASE_URL;
 }
 
 function stripNodeDisambiguation(title: string): string {
