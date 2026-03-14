@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 
 import { appConfig } from "../config.js";
 import { buildRuntimeArtifact, getBuildReadiness } from "../build/builder.js";
@@ -104,7 +105,7 @@ export class WikiService {
   searchPath(from: string, to: string): PathSearchResponse {
     const runtime = this.#requireRuntime();
     const searchedAt = new Date().toISOString();
-    const searchId = crypto.randomUUID();
+    const searchId = randomUUID();
     const startedAt = performance.now();
     const resolutionStartedAt = performance.now();
     const resolvedFrom = this.resolveTitle(from);
@@ -159,7 +160,7 @@ export class WikiService {
   ): Promise<PathSearchResponse> {
     const runtime = this.#requireRuntime();
     const searchedAt = new Date().toISOString();
-    const searchId = crypto.randomUUID();
+    const searchId = randomUUID();
     const startedAt = performance.now();
     const resolutionStartedAt = performance.now();
     const resolvedFrom = this.resolveTitle(from);

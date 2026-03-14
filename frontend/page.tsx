@@ -135,6 +135,11 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
         text: 'No shortest route could be found between those articles.',
         tone: 'error',
       };
+    case 'request_failed':
+      return {
+        text: 'Search request failed. Please try again.',
+        tone: 'error',
+      };
     default:
       return {
         text: 'Search failed.',
@@ -853,6 +858,7 @@ export default function Home() {
     () => applyRouteDisplayLimit(result, routeLimit),
     [result, routeLimit]
   );
+  const isMobileLayout = graphViewportSize.width > 0 ? graphViewportSize.width <= 768 : false;
   const hasResultLayout = Boolean(result);
   const hasGraph = Boolean(displayResult?.success);
   const helper = buildSearchHelper(displayResult, readiness);
@@ -889,7 +895,18 @@ export default function Home() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ position: 'absolute', top: 36, left: 40, zIndex: 10 }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: isMobileLayout ? 80 : 36,
+            left: isMobileLayout ? 20 : 40,
+            right: isMobileLayout ? 20 : undefined,
+            zIndex: 10,
+            display: 'flex',
+            justifyContent: isMobileLayout ? 'center' : 'flex-start',
+            pointerEvents: 'none',
+          }}
+        >
           <button
             onClick={handleHomeReset}
             style={{
@@ -899,17 +916,26 @@ export default function Home() {
               cursor: 'pointer',
               fontFamily: 'var(--font-syne), sans-serif',
               fontWeight: 800,
-              fontSize: 24,
-              letterSpacing: '-0.5px',
-              color: 'rgba(228,230,248,0.88)',
+              fontSize: isMobileLayout ? 'clamp(2.7rem, 8.8vw, 3.5rem)' : 24,
+              letterSpacing: isMobileLayout ? '-1.4px' : '-0.5px',
+              color: isMobileLayout ? 'rgba(240,242,255,0.96)' : 'rgba(228,230,248,0.88)',
               lineHeight: 1,
               transition: 'color 0.2s, opacity 0.2s',
+              textAlign: isMobileLayout ? 'center' : 'left',
+              maxWidth: isMobileLayout ? 420 : undefined,
+              textWrap: 'balance',
+              textShadow: isMobileLayout ? '0 0 28px rgba(132, 142, 208, 0.16)' : 'none',
+              pointerEvents: 'auto',
             }}
             onMouseEnter={(event) => {
-              event.currentTarget.style.color = 'rgba(240,242,255,0.98)';
+              event.currentTarget.style.color = isMobileLayout
+                ? 'rgba(248,249,255,0.98)'
+                : 'rgba(240,242,255,0.98)';
             }}
             onMouseLeave={(event) => {
-              event.currentTarget.style.color = 'rgba(228,230,248,0.88)';
+              event.currentTarget.style.color = isMobileLayout
+                ? 'rgba(240,242,255,0.96)'
+                : 'rgba(228,230,248,0.88)';
             }}
           >
             Seven Degrees of Wikipedia
@@ -935,10 +961,10 @@ export default function Home() {
             }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             style={{
-              width: 'min(720px, 92vw)',
+              width: isMobileLayout ? 'min(420px, calc(100vw - 40px))' : 'min(720px, 92vw)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 14,
+              gap: isMobileLayout ? 12 : 14,
             }}
           >
             <SearchUI
@@ -957,6 +983,7 @@ export default function Home() {
               helperText={helper.text}
               helperTone={helper.tone}
               getSuggestions={fetchArticleSuggestions}
+              isCompactLayout={isMobileLayout}
             />
             <ResultMeta result={displayResult} totalNodes={readiness?.totalNodes ?? 0} />
           </motion.div>

@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { randomUUID } from "node:crypto";
 
 import { appConfig } from "../config.js";
 import { WikiService } from "../services/wikiService.js";
@@ -110,7 +111,7 @@ async function main(): Promise<void> {
         `${JSON.stringify({
           type: "result",
           response: {
-            searchId: crypto.randomUUID(),
+              searchId: randomUUID(),
             searchedAt: new Date().toISOString(),
             stage: "complete",
             partial: false,

@@ -21,6 +21,7 @@ interface SearchUIProps {
   helperText?: string | null;
   helperTone?: 'default' | 'error';
   getSuggestions: (query: string) => Promise<ArticleSuggestion[]>;
+  isCompactLayout?: boolean;
 }
 
 interface AutocompleteProps {
@@ -115,6 +116,7 @@ interface InputFieldProps {
   disabled?: boolean;
   getSuggestions: (query: string) => Promise<ArticleSuggestion[]>;
   inputRef?: { current: HTMLInputElement | null };
+  isCompactLayout?: boolean;
 }
 
 function InputField({
@@ -126,7 +128,8 @@ function InputField({
   onFocusInput,
   disabled,
   getSuggestions,
-  inputRef: forwardedRef
+  inputRef: forwardedRef,
+  isCompactLayout = false
 }: InputFieldProps) {
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<ArticleSuggestion[]>([]);
@@ -183,16 +186,16 @@ function InputField({
     suggestions.length > 0 && suggestionsQuery === value.trim().toLowerCase();
 
   return (
-    <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 0 }}>
+    <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 0, width: isCompactLayout ? '100%' : undefined }}>
       <div
         style={{
           position: 'absolute',
-          top: -18,
+          top: isCompactLayout ? -20 : -18,
           left: 2,
-          fontSize: 9,
+          fontSize: isCompactLayout ? 10 : 9,
           letterSpacing: '1.8px',
           textTransform: 'uppercase',
-          color: focused ? 'rgba(200,205,240,0.7)' : 'rgba(130,135,160,0.5)',
+          color: focused ? 'rgba(214,219,248,0.84)' : 'rgba(164,169,198,0.72)',
           fontFamily: 'var(--font-azeret), monospace',
           transition: 'color 0.2s',
           pointerEvents: 'none',
@@ -206,9 +209,9 @@ function InputField({
           display: 'flex',
           alignItems: 'center',
           borderBottom: `1px solid ${
-            focused ? 'rgba(200,205,240,0.45)' : 'rgba(140,145,175,0.22)'
+            focused ? 'rgba(214,219,248,0.62)' : 'rgba(160,165,196,0.34)'
           }`,
-          paddingBottom: 8,
+          paddingBottom: isCompactLayout ? 10 : 8,
           transition: 'border-color 0.2s',
         }}
       >
@@ -249,12 +252,12 @@ function InputField({
             background: 'transparent',
             border: 'none',
             outline: 'none',
-            color: 'rgba(232,235,252,0.95)',
+            color: 'rgba(241,244,255,0.98)',
             fontFamily: 'var(--font-syne), sans-serif',
-            fontSize: 15,
+            fontSize: isCompactLayout ? 17 : 15,
             fontWeight: 400,
             letterSpacing: '0.02em',
-            caretColor: 'rgba(200,205,240,0.8)',
+            caretColor: 'rgba(220,225,250,0.92)',
             opacity: disabled ? 0.5 : 1,
           }}
         />
@@ -279,7 +282,8 @@ export default function SearchUI({
   disabled = false,
   helperText,
   helperTone = 'default',
-  getSuggestions
+  getSuggestions,
+  isCompactLayout = false
 }: SearchUIProps) {
   const startInputRef = useRef<HTMLInputElement>(null);
   const endInputRef = useRef<HTMLInputElement>(null);
@@ -296,9 +300,10 @@ export default function SearchUI({
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'flex-end',
-          gap: 16,
+          flexWrap: isCompactLayout ? 'nowrap' : 'wrap',
+          flexDirection: isCompactLayout ? 'column' : 'row',
+          alignItems: isCompactLayout ? 'stretch' : 'flex-end',
+          gap: isCompactLayout ? 18 : 16,
           width: '100%',
         }}
       >
@@ -322,6 +327,7 @@ export default function SearchUI({
           disabled={disabled}
           getSuggestions={getSuggestions}
           inputRef={startInputRef}
+          isCompactLayout={isCompactLayout}
         />
 
         <button
@@ -335,18 +341,19 @@ export default function SearchUI({
           style={{
             flexShrink: 0,
             background: 'transparent',
-            border: '1px solid rgba(150,155,185,0.22)',
+            border: '1px solid rgba(172,177,208,0.34)',
             borderRadius: '50%',
-            width: 30,
-            height: 30,
+            width: isCompactLayout ? 40 : 30,
+            height: isCompactLayout ? 40 : 30,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: disabled ? 'not-allowed' : 'pointer',
-            color: 'rgba(180,185,220,0.72)',
+            color: 'rgba(206,211,240,0.84)',
             transition: 'all 0.2s',
             opacity: disabled ? 0.45 : 1,
-            marginBottom: 2,
+            marginBottom: isCompactLayout ? 0 : 2,
+            alignSelf: isCompactLayout ? 'center' : undefined,
           }}
           onMouseEnter={(event) => {
             if (disabled) {
@@ -388,6 +395,7 @@ export default function SearchUI({
           disabled={disabled}
           getSuggestions={getSuggestions}
           inputRef={endInputRef}
+          isCompactLayout={isCompactLayout}
         />
 
         <button
@@ -399,19 +407,21 @@ export default function SearchUI({
           style={{
             flexShrink: 0,
             background: 'transparent',
-            border: '1px solid rgba(190,195,230,0.3)',
+            border: '1px solid rgba(204,209,240,0.42)',
             borderRadius: 3,
-            padding: '8px 18px',
+            padding: isCompactLayout ? '12px 18px' : '8px 18px',
             color:
-              isLoading || disabled ? 'rgba(150,155,190,0.5)' : 'rgba(228,232,255,0.94)',
+              isLoading || disabled ? 'rgba(164,169,198,0.54)' : 'rgba(238,242,255,0.98)',
             fontFamily: 'var(--font-azeret), monospace',
-            fontSize: 11,
-            letterSpacing: '1.5px',
+            fontSize: isCompactLayout ? 12 : 11,
+            letterSpacing: isCompactLayout ? '1.8px' : '1.5px',
             textTransform: 'uppercase',
             cursor: isLoading || disabled ? 'wait' : 'pointer',
             transition: 'all 0.2s',
-            minWidth: 112,
-            marginBottom: 4,
+            minWidth: isCompactLayout ? '100%' : 112,
+            width: isCompactLayout ? '100%' : undefined,
+            marginBottom: isCompactLayout ? 0 : 4,
+            marginTop: isCompactLayout ? 2 : 0,
           }}
           onMouseEnter={(event) => {
             if (isLoading || disabled) {
@@ -432,16 +442,16 @@ export default function SearchUI({
       {helperText && (
         <div
           style={{
-            marginTop: 14,
+            marginTop: isCompactLayout ? 10 : 14,
             fontFamily: 'var(--font-azeret), monospace',
-            fontSize: 9,
-            letterSpacing: '1px',
+            fontSize: isCompactLayout ? 10 : 9,
+            letterSpacing: isCompactLayout ? '1.2px' : '1px',
             textTransform: 'uppercase',
             textAlign: 'center',
             color:
               helperTone === 'error'
-                ? 'rgba(240,168,168,0.82)'
-                : 'rgba(120,125,160,0.58)',
+                ? 'rgba(255,184,184,0.88)'
+                : 'rgba(164,169,198,0.74)',
           }}
         >
           {helperText}
