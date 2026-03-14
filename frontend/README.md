@@ -13,12 +13,40 @@ A single-view, constellation-map Wikipedia path explorer backed by the real grap
 
 ```bash
 npm install
-NEXT_PUBLIC_WIKI_BACKEND_URL=http://127.0.0.1:3030 npm run dev
+WIKI_BACKEND_URL=http://127.0.0.1:7878 npm run dev
 ```
 
-Open [http://localhost:4500](http://localhost:4500) if you launch the frontend on port `4500`.
+Open [http://localhost:4500](http://localhost:4500).
 
-If `NEXT_PUBLIC_WIKI_BACKEND_URL` is omitted, the frontend defaults to `http://127.0.0.1:3030`.
+If `WIKI_BACKEND_URL` is omitted, the frontend proxy defaults to `https://7wikiapi.skylarenns.com`.
+
+## Server-Client Deployment Model
+
+The browser should talk only to the frontend origin. This app now uses Next.js route handlers under `/api/*` to proxy requests to the backend server.
+
+- Public entrypoint: `http://your-server:4500` or your Cloudflare Tunnel hostname
+- Private backend: `http://127.0.0.1:7878`
+- Browser API base: same-origin `/api/*`
+- Frontend-to-backend hop: `WIKI_BACKEND_URL`
+
+That means clients no longer need direct access to the backend host or port.
+
+## Vercel Setup
+
+If you connect this repo to Vercel, configure the project like this:
+
+- Framework Preset: `Next.js`
+- Root Directory: `frontend`
+- Install Command: `npm install`
+- Build Command: `npm run build`
+
+Set this environment variable in Vercel:
+
+```bash
+WIKI_BACKEND_URL=https://7wikiapi.skylarenns.com
+```
+
+That URL should be the public Cloudflare Tunnel hostname for the backend running on your Linux machine.
 
 ## File Structure
 
@@ -41,7 +69,7 @@ lib/
 
 ## Backend Integration
 
-The frontend now calls the backend through `lib/api.ts` and expects these shared surfaces:
+The frontend now calls same-origin `/api/*` routes through `lib/api.ts`, and the Next.js server forwards those requests to the backend. The proxied backend still expects these shared surfaces:
 
 - `GET /api/readiness`
 - `GET /api/articles/suggest?q=...`

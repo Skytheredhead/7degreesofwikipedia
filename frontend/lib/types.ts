@@ -92,12 +92,14 @@ export interface StatData {
 }
 
 export interface ReadinessState {
+  status: "ready" | "loading" | "unreachable";
   ready: boolean;
   graphLoaded: boolean;
   preloadComplete: boolean;
   searchReady: boolean;
   buildReady: boolean;
   totalNodes: number;
+  errorMessage: string | null;
 }
 
 export interface StatsOverview {

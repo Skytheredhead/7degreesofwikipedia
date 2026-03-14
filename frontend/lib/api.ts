@@ -172,10 +172,25 @@ interface BackendReadinessResponse {
   };
 }
 
-const DEFAULT_BACKEND_URL = "http://127.0.0.1:3030";
+const DEFAULT_PUBLIC_API_BASE_URL = "https://7wikiapi.skylarenns.com";
 
 function backendBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_WIKI_BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/+$/, "");
+  const explicitBaseUrl = (
+    process.env.NEXT_PUBLIC_WIKI_API_BASE_URL ?? process.env.NEXT_PUBLIC_WIKI_BACKEND_URL ?? ""
+  ).replace(/\/+$/, "");
+
+  if (explicitBaseUrl) {
+    return explicitBaseUrl;
+  }
+
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "";
+    }
+  }
+
+  return DEFAULT_PUBLIC_API_BASE_URL;
 }
 
 function stripNodeDisambiguation(title: string): string {
@@ -348,72 +363,84 @@ export async function runPathSearchProgressive(
     onUpdate?: (result: SearchResult) => void;
   } = {}
 ): Promise<SearchResult> {
-  const response = await fetch(`${backendBaseUrl()}/api/path/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ start, end }),
-    cache: "no-store",
-    signal: options.signal
-  });
+  try {
+    const response = await fetch(`${backendBaseUrl()}/api/path/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ start, end }),
+      cache: "no-store",
+      signal: options.signal
+    });
 
-  if (!response.ok || !response.body) {
-    let message = `Request failed with status ${response.status}`;
-    try {
-      const error = (await response.json()) as { message?: string; error?: string };
-      message = error.message ?? error.error ?? message;
-    } catch {
-      // Ignore JSON parsing errors and fall back to the generic status message.
-    }
-    throw new Error(message);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let finalResult: SearchResult | null = null;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
-
-    let newlineIndex = buffer.indexOf("\n");
-    while (newlineIndex !== -1) {
-      const line = buffer.slice(0, newlineIndex).trim();
-      buffer = buffer.slice(newlineIndex + 1);
-      if (line) {
-        const event = JSON.parse(line) as BackendSearchStreamEvent;
-        if (event.type === "result") {
-          const nextResult = toSearchResult(event.response);
-          options.onUpdate?.(nextResult);
-          finalResult = nextResult;
-        }
+    if (!response.ok || !response.body) {
+      let message = `Request failed with status ${response.status}`;
+      try {
+        const error = (await response.json()) as { message?: string; error?: string };
+        message = error.message ?? error.error ?? message;
+      } catch {
+        // Ignore JSON parsing errors and fall back to the generic status message.
       }
-      newlineIndex = buffer.indexOf("\n");
+      throw new Error(message);
     }
 
-    if (done) {
-      break;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResult: SearchResult | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+      let newlineIndex = buffer.indexOf("\n");
+      while (newlineIndex !== -1) {
+        const line = buffer.slice(0, newlineIndex).trim();
+        buffer = buffer.slice(newlineIndex + 1);
+        if (line) {
+          const event = JSON.parse(line) as BackendSearchStreamEvent;
+          if (event.type === "result") {
+            const nextResult = toSearchResult(event.response);
+            options.onUpdate?.(nextResult);
+            finalResult = nextResult;
+          }
+        }
+        newlineIndex = buffer.indexOf("\n");
+      }
+
+      if (done) {
+        break;
+      }
     }
-  }
 
-  if (!finalResult) {
-    throw new Error("Streaming path search ended before returning a result.");
-  }
+    if (!finalResult) {
+      throw new Error("Streaming path search ended before returning a result.");
+    }
 
-  return finalResult;
+    return finalResult;
+  } catch (error) {
+    if (options.signal?.aborted) {
+      throw error;
+    }
+
+    const fallbackResult = await runPathSearch(start, end);
+    options.onUpdate?.(fallbackResult);
+    return fallbackResult;
+  }
 }
 
 export async function fetchReadiness(): Promise<ReadinessState> {
   const payload = await apiFetch<BackendReadinessResponse>("/api/readiness");
   return {
+    status: payload.ready ? "ready" : "loading",
     ready: payload.ready,
     graphLoaded: payload.readiness.graphLoaded,
     preloadComplete: payload.readiness.preloadComplete,
     searchReady: payload.readiness.searchReady,
     buildReady: payload.build.ready,
-    totalNodes: payload.runtime?.counts?.canonicalNodes ?? 0
+    totalNodes: payload.runtime?.counts?.canonicalNodes ?? 0,
+    errorMessage: null
   };
 }
 
