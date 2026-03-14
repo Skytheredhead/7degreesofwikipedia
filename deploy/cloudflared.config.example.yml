@@ -3,5 +3,5 @@ credentials-file: /etc/cloudflared/your-tunnel-id.json
 
 ingress:
   - hostname: wiki-api.yourdomain.com
-    service: http://127.0.0.1:3030
+    service: http://127.0.0.1:7878
   - service: http_status:404

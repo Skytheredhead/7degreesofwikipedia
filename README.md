@@ -52,11 +52,11 @@ The loader discovers these by pattern, so exact dated filenames are fine.
 
 ## Services
 
-- Backend: Fastify API on `127.0.0.1:3030` by default
+- Backend: Fastify API on `127.0.0.1:7878` by default
 - Frontend: Next.js app on `0.0.0.0:4500` by default for self-hosting
 - Vercel mode: host only the `frontend/` app on Vercel and point it at a public backend URL
 
-The browser now calls same-origin `/api/*` routes on the frontend server. Those requests are forwarded server-side to the backend using `WIKI_BACKEND_URL` (defaults to `http://127.0.0.1:3030`).
+The browser now calls same-origin `/api/*` routes on the frontend server. Those requests are forwarded server-side to the backend using `WIKI_BACKEND_URL` (defaults to `https://7wikiapi.skylarenns.com`).
 
 ## Commands
 
@@ -118,7 +118,7 @@ If you want the frontend on Vercel, deploy only the `frontend/` folder there and
 
 ### Vercel environment variables
 
-- `WIKI_BACKEND_URL=https://wiki-api.yourdomain.com`
+- `WIKI_BACKEND_URL=https://7wikiapi.skylarenns.com`
 
 Use the public Cloudflare Tunnel hostname for the backend here, not `127.0.0.1`.
 
@@ -133,19 +133,19 @@ bash deploy/start-backend.sh
 Or with explicit settings:
 
 ```bash
-HOST=127.0.0.1 PORT=3030 bash deploy/start-backend.sh
+HOST=127.0.0.1 PORT=7878 bash deploy/start-backend.sh
 ```
 
 ### Cloudflare Tunnel
 
-Expose the backend port, which is `3030` by default.
+Expose the backend port, which is `7878` by default.
 
 That means your tunnel should forward:
 
 1. Public hostname like `https://wiki-api.yourdomain.com`
-2. To `http://127.0.0.1:3030` on the Linux server
+2. To `http://127.0.0.1:7878` on the Linux server
 
-Then Vercel uses `WIKI_BACKEND_URL=https://wiki-api.yourdomain.com`, and browsers continue hitting your Vercel site only.
+Then Vercel uses `WIKI_BACKEND_URL=https://7wikiapi.skylarenns.com`, and browsers continue hitting your Vercel site only.
 
 Example tunnel config for the backend: [deploy/cloudflared.config.example.yml](/Users/skylarenns/Documents/6or7degreesofWikipedia/deploy/cloudflared.config.example.yml)
 
@@ -154,7 +154,7 @@ The important topology is:
 1. Vercel hosts the Next.js frontend from `frontend/`
 2. Browser requests `https://your-vercel-app.vercel.app/api/*`
 3. Vercel route handlers proxy those requests to `https://wiki-api.yourdomain.com`
-4. Cloudflare Tunnel forwards that hostname to `http://127.0.0.1:3030`
+4. Cloudflare Tunnel forwards that hostname to `http://127.0.0.1:7878`
 5. The Linux machine runs only the backend
 
 ## API Surface
@@ -288,4 +288,4 @@ These expose:
 - The importer is schema-driven enough to handle modern `pagelinks` with `pl_target_id`, and it can fall back to `pl_namespace` + `pl_title` if needed.
 - If the runtime artifact is missing but all dumps are present, the server will auto-build once on first startup.
 - If the dumps are incomplete, the server still boots and exposes status, but search endpoints will return a readiness error until the artifact exists.
-- For the Vercel deployment shape, keep the backend bound to loopback on the Linux host and expose only port `3030` through Cloudflare Tunnel.
+- For the Vercel deployment shape, keep the backend bound to loopback on the Linux host and expose only port `7878` through Cloudflare Tunnel.

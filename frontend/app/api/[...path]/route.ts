@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-const DEFAULT_BACKEND_URL = "http://127.0.0.1:3030";
+const DEFAULT_BACKEND_URL = "https://7wikiapi.skylarenns.com";
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",

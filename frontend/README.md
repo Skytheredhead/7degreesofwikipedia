@@ -13,19 +13,19 @@ A single-view, constellation-map Wikipedia path explorer backed by the real grap
 
 ```bash
 npm install
-WIKI_BACKEND_URL=http://127.0.0.1:3030 npm run dev
+WIKI_BACKEND_URL=http://127.0.0.1:7878 npm run dev
 ```
 
 Open [http://localhost:4500](http://localhost:4500).
 
-If `WIKI_BACKEND_URL` is omitted, the frontend proxy defaults to `http://127.0.0.1:3030`.
+If `WIKI_BACKEND_URL` is omitted, the frontend proxy defaults to `https://7wikiapi.skylarenns.com`.
 
 ## Server-Client Deployment Model
 
 The browser should talk only to the frontend origin. This app now uses Next.js route handlers under `/api/*` to proxy requests to the backend server.
 
 - Public entrypoint: `http://your-server:4500` or your Cloudflare Tunnel hostname
-- Private backend: `http://127.0.0.1:3030`
+- Private backend: `http://127.0.0.1:7878`
 - Browser API base: same-origin `/api/*`
 - Frontend-to-backend hop: `WIKI_BACKEND_URL`
 
@@ -43,7 +43,7 @@ If you connect this repo to Vercel, configure the project like this:
 Set this environment variable in Vercel:
 
 ```bash
-WIKI_BACKEND_URL=https://wiki-api.yourdomain.com
+WIKI_BACKEND_URL=https://7wikiapi.skylarenns.com
 ```
 
 That URL should be the public Cloudflare Tunnel hostname for the backend running on your Linux machine.
