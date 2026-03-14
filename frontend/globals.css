@@ -111,6 +111,29 @@ input::placeholder {
   color: var(--text-dim);
 }
 
+:where(button, input, a, [role="button"], [tabindex]:not([tabindex="-1"])) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, input, a, [role="button"], [tabindex]:not([tabindex="-1"])):focus {
+  outline: none;
+}
+
+:where(button, input, a, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(214, 220, 250, 0.5),
+    0 0 0 8px rgba(104, 118, 196, 0.14),
+    0 0 28px rgba(104, 118, 196, 0.18);
+  scale: 1.025;
+  transition:
+    box-shadow 0.18s ease,
+    scale 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    background-color 0.18s ease;
+}
+
 @media (max-width: 768px) {
   :root {
     --text-secondary: rgba(188, 193, 220, 0.82);

@@ -14,6 +14,8 @@ interface SearchUIProps {
   onEndChange: (value: string) => void;
   onStartFocus?: () => void;
   onEndFocus?: () => void;
+  onStartBlur?: () => void;
+  onEndBlur?: () => void;
   onSearch: (overrides?: { start?: string; end?: string }) => void;
   onSwap: () => void;
   isLoading: boolean;
@@ -113,6 +115,7 @@ interface InputFieldProps {
   label: string;
   onEnter: (nextValue?: string) => void;
   onFocusInput?: () => void;
+  onBlurInput?: () => void;
   disabled?: boolean;
   getSuggestions: (query: string) => Promise<ArticleSuggestion[]>;
   inputRef?: { current: HTMLInputElement | null };
@@ -126,6 +129,7 @@ function InputField({
   label,
   onEnter,
   onFocusInput,
+  onBlurInput,
   disabled,
   getSuggestions,
   inputRef: forwardedRef,
@@ -151,6 +155,7 @@ function InputField({
 
     let cancelled = false;
     const requestValue = value;
+    const debounceMs = requestValue.trim().length >= 6 ? 35 : 55;
     const timer = window.setTimeout(async () => {
       try {
         const nextSuggestions = await getSuggestions(requestValue);
@@ -164,7 +169,7 @@ function InputField({
           setSuggestionsQuery('');
         }
       }
-    }, 120);
+    }, debounceMs);
 
     return () => {
       cancelled = true;
@@ -268,6 +273,7 @@ function InputField({
           onBlur={(event) => {
             window.setTimeout(() => setFocused(false), 150);
             void commitBestSuggestion(event.currentTarget.value);
+            onBlurInput?.();
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
@@ -321,6 +327,8 @@ export default function SearchUI({
   onEndChange,
   onStartFocus,
   onEndFocus,
+  onStartBlur,
+  onEndBlur,
   onSearch,
   onSwap,
   isLoading,
@@ -369,6 +377,7 @@ export default function SearchUI({
             onSearch(nextStart ? { start: nextStart } : undefined);
           }}
           onFocusInput={onStartFocus}
+          onBlurInput={onStartBlur}
           disabled={disabled}
           getSuggestions={getSuggestions}
           inputRef={startInputRef}
@@ -437,6 +446,7 @@ export default function SearchUI({
           label="Destination"
           onEnter={(nextEnd) => onSearch(nextEnd ? { end: nextEnd } : undefined)}
           onFocusInput={onEndFocus}
+          onBlurInput={onEndBlur}
           disabled={disabled}
           getSuggestions={getSuggestions}
           inputRef={endInputRef}

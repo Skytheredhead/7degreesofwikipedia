@@ -807,6 +807,24 @@ export default function Home() {
     }
   }, [committedEndValue, endValue, result]);
 
+  const handleStartBlur = useCallback(() => {
+    if (!result) {
+      return;
+    }
+    if (!startValue.trim() && committedStartValue.trim()) {
+      setStartValue(committedStartValue);
+    }
+  }, [committedStartValue, result, startValue]);
+
+  const handleEndBlur = useCallback(() => {
+    if (!result) {
+      return;
+    }
+    if (!endValue.trim() && committedEndValue.trim()) {
+      setEndValue(committedEndValue);
+    }
+  }, [committedEndValue, endValue, result]);
+
   const handleHomeReset = useCallback(() => {
     searchAbortRef.current?.abort();
     setSearchState('idle');
@@ -976,6 +994,8 @@ export default function Home() {
               onEndChange={setEndValue}
               onStartFocus={handleStartFocus}
               onEndFocus={handleEndFocus}
+              onStartBlur={handleStartBlur}
+              onEndBlur={handleEndBlur}
               onSearch={handleSearch}
               onSwap={handleSwap}
               isLoading={searchState === 'loading'}
