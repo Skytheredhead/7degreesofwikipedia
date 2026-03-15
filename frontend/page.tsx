@@ -107,6 +107,13 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
     };
   }
 
+  if (result?.success && result.partial) {
+    return {
+      text: `First shortest path found in ${formatMs(result.diagnostics.firstRouteMs)}. Mapping the rest...`,
+      tone: 'default',
+    };
+  }
+
   if (!result || result.success) {
     return {
       text: null,
@@ -133,6 +140,11 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
     case 'no_path':
       return {
         text: 'No shortest route could be found between those articles.',
+        tone: 'error',
+      };
+    case 'request_failed':
+      return {
+        text: 'Search request failed. Please try again.',
         tone: 'error',
       };
     default:
@@ -184,11 +196,13 @@ function ResultMeta({
 
   const totalRenderedNodes = countRenderedGraphNodes(result);
   const totalRoutesLabel =
-    result.totalRoutesFound === null
-      ? 'counting routes'
-      : result.totalRoutesFound === '1'
-        ? '1 total route'
-        : `${result.totalRoutesFound} total routes`;
+    result.partial
+      ? 'finding the rest of the shortest routes'
+      : result.totalRoutesFound === null
+        ? 'counting routes'
+        : result.totalRoutesFound === '1'
+          ? '1 total route'
+          : `${result.totalRoutesFound} total routes`;
 
   return (
     <motion.div
@@ -275,6 +289,7 @@ function ResultMeta({
         }}
       >
         <span style={{ color: 'rgba(224,228,250,0.95)' }}>{formatMs(result.loadTimeMs)}</span>
+        <span>first path in {formatMs(result.diagnostics.firstRouteMs)}</span>
         <span>{result.pathLength} hops</span>
         <span>{totalRoutesLabel}</span>
         <span
@@ -802,6 +817,24 @@ export default function Home() {
     }
   }, [committedEndValue, endValue, result]);
 
+  const handleStartBlur = useCallback(() => {
+    if (!result) {
+      return;
+    }
+    if (!startValue.trim() && committedStartValue.trim()) {
+      setStartValue(committedStartValue);
+    }
+  }, [committedStartValue, result, startValue]);
+
+  const handleEndBlur = useCallback(() => {
+    if (!result) {
+      return;
+    }
+    if (!endValue.trim() && committedEndValue.trim()) {
+      setEndValue(committedEndValue);
+    }
+  }, [committedEndValue, endValue, result]);
+
   const handleHomeReset = useCallback(() => {
     searchAbortRef.current?.abort();
     setSearchState('idle');
@@ -853,6 +886,7 @@ export default function Home() {
     () => applyRouteDisplayLimit(result, routeLimit),
     [result, routeLimit]
   );
+  const isMobileLayout = graphViewportSize.width > 0 ? graphViewportSize.width <= 768 : false;
   const hasResultLayout = Boolean(result);
   const hasGraph = Boolean(displayResult?.success);
   const helper = buildSearchHelper(displayResult, readiness);
@@ -889,7 +923,18 @@ export default function Home() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ position: 'absolute', top: 36, left: 40, zIndex: 10 }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: isMobileLayout ? 80 : 36,
+            left: isMobileLayout ? 20 : 40,
+            right: isMobileLayout ? 20 : undefined,
+            zIndex: 10,
+            display: 'flex',
+            justifyContent: isMobileLayout ? 'center' : 'flex-start',
+            pointerEvents: 'none',
+          }}
+        >
           <button
             onClick={handleHomeReset}
             style={{
@@ -899,17 +944,26 @@ export default function Home() {
               cursor: 'pointer',
               fontFamily: 'var(--font-syne), sans-serif',
               fontWeight: 800,
-              fontSize: 24,
-              letterSpacing: '-0.5px',
-              color: 'rgba(228,230,248,0.88)',
+              fontSize: isMobileLayout ? 'clamp(2.7rem, 8.8vw, 3.5rem)' : 24,
+              letterSpacing: isMobileLayout ? '-1.4px' : '-0.5px',
+              color: isMobileLayout ? 'rgba(240,242,255,0.96)' : 'rgba(228,230,248,0.88)',
               lineHeight: 1,
               transition: 'color 0.2s, opacity 0.2s',
+              textAlign: isMobileLayout ? 'center' : 'left',
+              maxWidth: isMobileLayout ? 420 : undefined,
+              textWrap: 'balance',
+              textShadow: isMobileLayout ? '0 0 28px rgba(132, 142, 208, 0.16)' : 'none',
+              pointerEvents: 'auto',
             }}
             onMouseEnter={(event) => {
-              event.currentTarget.style.color = 'rgba(240,242,255,0.98)';
+              event.currentTarget.style.color = isMobileLayout
+                ? 'rgba(248,249,255,0.98)'
+                : 'rgba(240,242,255,0.98)';
             }}
             onMouseLeave={(event) => {
-              event.currentTarget.style.color = 'rgba(228,230,248,0.88)';
+              event.currentTarget.style.color = isMobileLayout
+                ? 'rgba(240,242,255,0.96)'
+                : 'rgba(228,230,248,0.88)';
             }}
           >
             Seven Degrees of Wikipedia
@@ -935,10 +989,10 @@ export default function Home() {
             }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             style={{
-              width: 'min(720px, 92vw)',
+              width: isMobileLayout ? 'min(420px, calc(100vw - 40px))' : 'min(720px, 92vw)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 14,
+              gap: isMobileLayout ? 12 : 14,
             }}
           >
             <SearchUI
@@ -950,6 +1004,8 @@ export default function Home() {
               onEndChange={setEndValue}
               onStartFocus={handleStartFocus}
               onEndFocus={handleEndFocus}
+              onStartBlur={handleStartBlur}
+              onEndBlur={handleEndBlur}
               onSearch={handleSearch}
               onSwap={handleSwap}
               isLoading={searchState === 'loading'}
@@ -957,6 +1013,7 @@ export default function Home() {
               helperText={helper.text}
               helperTone={helper.tone}
               getSuggestions={fetchArticleSuggestions}
+              isCompactLayout={isMobileLayout}
             />
             <ResultMeta result={displayResult} totalNodes={readiness?.totalNodes ?? 0} />
           </motion.div>
