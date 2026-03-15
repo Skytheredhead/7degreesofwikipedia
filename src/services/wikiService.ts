@@ -212,23 +212,6 @@ export class WikiService {
 
     await new Promise<void>((resolve) => setImmediate(resolve));
 
-    const expandedResponse = this.#buildPathSearchResponse({
-      searchId,
-      searchedAt,
-      from,
-      to,
-      resolvedFrom,
-      resolvedTo,
-      redirectsApplied,
-      result: progressive.expandDisplayedRoutes(),
-      startedAt,
-      resolutionMs,
-      stage: "routes"
-    });
-    await onEvent({ type: "result", response: expandedResponse });
-
-    await new Promise<void>((resolve) => setImmediate(resolve));
-
     const finalResponse = this.#buildPathSearchResponse({
       searchId,
       searchedAt,

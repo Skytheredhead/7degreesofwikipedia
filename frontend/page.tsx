@@ -107,6 +107,13 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
     };
   }
 
+  if (result?.success && result.partial) {
+    return {
+      text: `First shortest path found in ${formatMs(result.diagnostics.firstRouteMs)}. Mapping the rest...`,
+      tone: 'default',
+    };
+  }
+
   if (!result || result.success) {
     return {
       text: null,
@@ -189,11 +196,13 @@ function ResultMeta({
 
   const totalRenderedNodes = countRenderedGraphNodes(result);
   const totalRoutesLabel =
-    result.totalRoutesFound === null
-      ? 'counting routes'
-      : result.totalRoutesFound === '1'
-        ? '1 total route'
-        : `${result.totalRoutesFound} total routes`;
+    result.partial
+      ? 'finding the rest of the shortest routes'
+      : result.totalRoutesFound === null
+        ? 'counting routes'
+        : result.totalRoutesFound === '1'
+          ? '1 total route'
+          : `${result.totalRoutesFound} total routes`;
 
   return (
     <motion.div
@@ -280,6 +289,7 @@ function ResultMeta({
         }}
       >
         <span style={{ color: 'rgba(224,228,250,0.95)' }}>{formatMs(result.loadTimeMs)}</span>
+        <span>first path in {formatMs(result.diagnostics.firstRouteMs)}</span>
         <span>{result.pathLength} hops</span>
         <span>{totalRoutesLabel}</span>
         <span
