@@ -379,12 +379,28 @@ function ResultMeta({
   totalNodes: number;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const detailsCardRef = useRef<HTMLDivElement | null>(null);
   const detailsButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     setDetailsOpen(false);
   }, [result?.searchId]);
+
+  useEffect(() => {
+    if (!result?.success || !result.partial) {
+      setElapsedMs(result?.loadTimeMs ?? 0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      setElapsedMs(Math.max(result.loadTimeMs, Date.now() - result.searchedAt.getTime()));
+    };
+
+    updateElapsed();
+    const intervalId = window.setInterval(updateElapsed, 40);
+    return () => window.clearInterval(intervalId);
+  }, [result]);
 
   useEffect(() => {
     if (!detailsOpen) {
@@ -415,9 +431,10 @@ function ResultMeta({
   }
 
   const totalRenderedNodes = countRenderedGraphNodes(result);
+  const liveElapsedMs = result.partial ? elapsedMs : result.loadTimeMs;
   const totalRoutesLabel =
     result.partial
-      ? 'finding the rest of the shortest routes'
+      ? `${result.displayedRoutes.toLocaleString()} routes found`
       : result.totalRoutesFound === null
         ? 'counting routes'
         : result.totalRoutesFound === '1'
@@ -508,7 +525,7 @@ function ResultMeta({
           gap: 14,
         }}
       >
-        <span style={{ color: 'rgba(224,228,250,0.95)' }}>{formatMs(result.loadTimeMs)}</span>
+        <span style={{ color: 'rgba(224,228,250,0.95)' }}>{formatMs(liveElapsedMs)}</span>
         <span>first path in {formatMs(result.diagnostics.firstRouteMs)}</span>
         <span>{result.pathLength} hops</span>
         <span>{totalRoutesLabel}</span>
@@ -545,6 +562,21 @@ function ResultMeta({
             </svg>
           </button>
         </span>
+        {result.partial && (
+          <motion.span
+            aria-hidden="true"
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              border: '1.5px solid rgba(158,164,198,0.26)',
+              borderTopColor: 'rgba(230,234,255,0.92)',
+              display: 'inline-block',
+            }}
+          />
+        )}
       </div>
     </motion.div>
   );
