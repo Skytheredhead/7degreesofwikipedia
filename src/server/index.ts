@@ -5,6 +5,36 @@ import { randomUUID } from "node:crypto";
 import { appConfig } from "../config.js";
 import { WikiService } from "../services/wikiService.js";
 
+const SEARCH_RATE_LIMIT_MS = 1000;
+const searchRequestTimestamps = new Map<string, number>();
+
+function extractClientIp(headers: Record<string, unknown>): string {
+  const forwardedFor = typeof headers["x-forwarded-for"] === "string" ? headers["x-forwarded-for"] : "";
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
+  }
+
+  const connectingIp = typeof headers["cf-connecting-ip"] === "string" ? headers["cf-connecting-ip"] : "";
+  if (connectingIp) {
+    return connectingIp;
+  }
+
+  const realIp = typeof headers["x-real-ip"] === "string" ? headers["x-real-ip"] : "";
+  return realIp || "unknown";
+}
+
+function pruneRateLimitEntries(now: number): void {
+  if (searchRequestTimestamps.size < 2048) {
+    return;
+  }
+
+  for (const [key, timestamp] of searchRequestTimestamps.entries()) {
+    if (now - timestamp > SEARCH_RATE_LIMIT_MS * 5) {
+      searchRequestTimestamps.delete(key);
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const wiki = await WikiService.bootstrap();
   const app = Fastify({
@@ -60,6 +90,20 @@ async function main(): Promise<void> {
   });
 
   app.get("/api/paths", async (request, reply) => {
+    const now = Date.now();
+    pruneRateLimitEntries(now);
+    const clientIp = extractClientIp(request.headers as Record<string, unknown>);
+    const remainingMs = SEARCH_RATE_LIMIT_MS - (now - (searchRequestTimestamps.get(clientIp) ?? 0));
+    if (remainingMs > 0) {
+      reply.header("Retry-After", "1");
+      return reply.status(429).send({
+        error: "rate_limited",
+        message: `Rate limit: one search per second per IP. Try again in ${Math.ceil(remainingMs)}ms.`,
+        retryAfterMs: Math.ceil(remainingMs)
+      });
+    }
+    searchRequestTimestamps.set(clientIp, now);
+
     const { from, to } = request.query as { from?: string; to?: string };
     if (!from || !to) {
       return reply.status(400).send({ error: "Missing from or to query parameter." });
@@ -69,6 +113,20 @@ async function main(): Promise<void> {
   });
 
   app.post("/api/path", async (request, reply) => {
+    const now = Date.now();
+    pruneRateLimitEntries(now);
+    const clientIp = extractClientIp(request.headers as Record<string, unknown>);
+    const remainingMs = SEARCH_RATE_LIMIT_MS - (now - (searchRequestTimestamps.get(clientIp) ?? 0));
+    if (remainingMs > 0) {
+      reply.header("Retry-After", "1");
+      return reply.status(429).send({
+        error: "rate_limited",
+        message: `Rate limit: one search per second per IP. Try again in ${Math.ceil(remainingMs)}ms.`,
+        retryAfterMs: Math.ceil(remainingMs)
+      });
+    }
+    searchRequestTimestamps.set(clientIp, now);
+
     const body = request.body as { from?: string; to?: string; start?: string; end?: string } | null;
     const from = body?.from ?? body?.start;
     const to = body?.to ?? body?.end;
@@ -80,6 +138,20 @@ async function main(): Promise<void> {
   });
 
   app.post("/api/path/stream", async (request, reply) => {
+    const now = Date.now();
+    pruneRateLimitEntries(now);
+    const clientIp = extractClientIp(request.headers as Record<string, unknown>);
+    const remainingMs = SEARCH_RATE_LIMIT_MS - (now - (searchRequestTimestamps.get(clientIp) ?? 0));
+    if (remainingMs > 0) {
+      reply.header("Retry-After", "1");
+      return reply.status(429).send({
+        error: "rate_limited",
+        message: `Rate limit: one search per second per IP. Try again in ${Math.ceil(remainingMs)}ms.`,
+        retryAfterMs: Math.ceil(remainingMs)
+      });
+    }
+    searchRequestTimestamps.set(clientIp, now);
+
     const body = request.body as { from?: string; to?: string; start?: string; end?: string } | null;
     const from = body?.from ?? body?.start;
     const to = body?.to ?? body?.end;

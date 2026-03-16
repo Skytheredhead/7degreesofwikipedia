@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 const DEFAULT_BACKEND_URL = "https://7wikiapi.skylarenns.com";
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
+const SEARCH_RATE_LIMIT_MS = 1000;
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "content-length",
@@ -14,6 +15,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   "transfer-encoding",
   "upgrade"
 ]);
+const searchRequestTimestamps = new Map<string, number>();
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,6 +43,67 @@ function copyRequestHeaders(request: NextRequest): Headers {
   }
 
   return headers;
+}
+
+function isSearchPath(pathSegments: string[] = []): boolean {
+  const joined = pathSegments.join("/");
+  return joined === "path" || joined === "path/stream" || joined === "paths";
+}
+
+function extractClientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
+  }
+
+  return (
+    request.headers.get("cf-connecting-ip") ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+function pruneRateLimitEntries(now: number): void {
+  if (searchRequestTimestamps.size < 2048) {
+    return;
+  }
+
+  for (const [key, timestamp] of searchRequestTimestamps.entries()) {
+    if (now - timestamp > SEARCH_RATE_LIMIT_MS * 5) {
+      searchRequestTimestamps.delete(key);
+    }
+  }
+}
+
+function checkSearchRateLimit(request: NextRequest, pathSegments: string[] = []): Response | null {
+  if (!isSearchPath(pathSegments)) {
+    return null;
+  }
+
+  const now = Date.now();
+  pruneRateLimitEntries(now);
+  const clientIp = extractClientIp(request);
+  const lastRequestAt = searchRequestTimestamps.get(clientIp) ?? 0;
+  const remainingMs = SEARCH_RATE_LIMIT_MS - (now - lastRequestAt);
+
+  if (remainingMs > 0) {
+    return Response.json(
+      {
+        error: "rate_limited",
+        message: `Rate limit: one search per second per IP. Try again in ${Math.ceil(remainingMs)}ms.`,
+        retryAfterMs: Math.ceil(remainingMs)
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": "1"
+        }
+      }
+    );
+  }
+
+  searchRequestTimestamps.set(clientIp, now);
+  return null;
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[] = []): Promise<Response> {
@@ -89,6 +152,10 @@ type RouteContext = {
 
 async function handle(request: NextRequest, context: RouteContext): Promise<Response> {
   const { path = [] } = await context.params;
+  const rateLimited = checkSearchRateLimit(request, path);
+  if (rateLimited) {
+    return rateLimited;
+  }
   return proxyRequest(request, path);
 }
 

@@ -22,6 +22,9 @@ const GRAPH_VIEWBOX_WIDTH = 1200;
 const GRAPH_VIEWBOX_HEIGHT = 700;
 const GRAPH_SECTION_TOP = 340;
 const SEARCH_TO_GRAPH_GAP = 72;
+const SEARCH_RATE_LIMIT_MS = 1000;
+const SEARCH_RATE_LIMIT_COOKIE = "seven_degrees_search_cooldown";
+const SEARCH_RATE_LIMIT_STORAGE_KEY = "seven-degrees:last-search-at";
 const NEWS_SITE_PATTERNS = [
   /\babc news\b/i,
   /\bassociated press\b/i,
@@ -65,6 +68,40 @@ function formatMs(ms: number): string {
     return `${Math.max(1, Math.round(ms))}ms`;
   }
   return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function readSearchCooldownCookie(): number {
+  if (typeof document === "undefined") {
+    return 0;
+  }
+
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${SEARCH_RATE_LIMIT_COOKIE}=([^;]+)`)
+  );
+  const value = match ? Number(match[1]) : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function readSearchCooldownTimestamp(): number {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+
+  const storageValue = Number(window.localStorage.getItem(SEARCH_RATE_LIMIT_STORAGE_KEY) ?? 0);
+  const cookieValue = readSearchCooldownCookie();
+  return Math.max(
+    Number.isFinite(storageValue) ? storageValue : 0,
+    Number.isFinite(cookieValue) ? cookieValue : 0
+  );
+}
+
+function writeSearchCooldownTimestamp(timestamp: number): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(SEARCH_RATE_LIMIT_STORAGE_KEY, String(timestamp));
+  document.cookie = `${SEARCH_RATE_LIMIT_COOKIE}=${timestamp}; Max-Age=3600; Path=/; SameSite=Lax`;
 }
 
 function createEmptyStats(): StatData {
@@ -722,6 +759,7 @@ export default function Home() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchRateLimitMessage, setSearchRateLimitMessage] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [stats, setStats] = useState<StatData>(createEmptyStats());
   const [readiness, setReadiness] = useState<ReadinessState | null>(null);
@@ -786,6 +824,18 @@ export default function Home() {
 
     return () => window.clearInterval(intervalId);
   }, [readiness?.status, refreshBackendState]);
+
+  useEffect(() => {
+    if (!searchRateLimitMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSearchRateLimitMessage(null);
+    }, SEARCH_RATE_LIMIT_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchRateLimitMessage]);
 
   useEffect(() => {
     const savedPreference = window.localStorage.getItem('seven-degrees:disallow-news-sites');
@@ -858,11 +908,22 @@ export default function Home() {
       return;
     }
 
+    const now = Date.now();
+    const remainingMs = SEARCH_RATE_LIMIT_MS - (now - readSearchCooldownTimestamp());
+    if (remainingMs > 0) {
+      setSearchRateLimitMessage(
+        `Rate limit: one search per second. Try again in ${Math.ceil(remainingMs)}ms.`
+      );
+      return;
+    }
+
     searchAbortRef.current?.abort();
     const abortController = new AbortController();
     searchAbortRef.current = abortController;
     searchRunIdRef.current += 1;
     const searchRunId = searchRunIdRef.current;
+    writeSearchCooldownTimestamp(now);
+    setSearchRateLimitMessage(null);
     setResult(null);
     setSearchState('loading');
 
@@ -894,6 +955,11 @@ export default function Home() {
       });
     } catch (error) {
       if (abortController.signal.aborted) {
+        return;
+      }
+      if (error instanceof Error && /one search per second|rate limit/i.test(error.message)) {
+        setSearchRateLimitMessage(error.message);
+        setSearchState('idle');
         return;
       }
       console.error('Search failed:', error);
@@ -1076,6 +1142,9 @@ export default function Home() {
     allRoutesFiltered: displayState.allRoutesFiltered,
     hiddenNewsRouteCount: displayState.hiddenNewsRouteCount,
   });
+  const effectiveHelper = searchRateLimitMessage
+    ? { text: searchRateLimitMessage, tone: 'error' as const }
+    : helper;
   const searchTop = (() => {
     if (isMobileLayout) {
       return 0;
@@ -1205,8 +1274,8 @@ export default function Home() {
               onSwap={handleSwap}
               isLoading={searchState === 'loading'}
               disabled={readiness ? readiness.status !== 'ready' : false}
-              helperText={helper.text}
-              helperTone={helper.tone}
+              helperText={effectiveHelper.text}
+              helperTone={effectiveHelper.tone}
               getSuggestions={fetchArticleSuggestions}
               isCompactLayout={isMobileLayout}
             />
