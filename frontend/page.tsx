@@ -75,6 +75,7 @@ function createEmptyStats(): StatData {
     fastestMs: 0,
     slowestMs: 0,
     averageMs: 0,
+    averageFirstRouteMs: 0,
     cacheHitRate: 0,
     topConnector: 'No searches yet',
     mostFrequentBridge: 'No searches yet',

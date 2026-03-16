@@ -85,6 +85,7 @@ export interface StatData {
   fastestMs: number;
   slowestMs: number;
   averageMs: number;
+  averageFirstRouteMs: number;
   cacheHitRate: number;
   topConnector: string;
   mostFrequentBridge: string;

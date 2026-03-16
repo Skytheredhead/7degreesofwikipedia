@@ -186,6 +186,7 @@ export default function StatsPanel({ stats, onClose, buttonRef }: StatsPanelProp
         <StatRow label="Fastest" value={`${stats.fastestMs}ms`} />
         <StatRow label="Slowest" value={`${stats.slowestMs}ms`} />
         <StatRow label="Average" value={`${stats.averageMs}ms`} />
+        <StatRow label="Avg First Route" value={`${stats.averageFirstRouteMs}ms`} />
         <StatRow label="Recent Average" value={`${recentAverage}ms`} />
         <StatRow label="Cache Hit Rate" value={`${Math.round(stats.cacheHitRate * 100)}%`} />
       </div>

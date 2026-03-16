@@ -129,6 +129,7 @@ interface BackendStatsSummary {
       successfulSearches: number;
       failedSearches: number;
       averageDurationMs: number | null;
+      averageFirstRouteMs: number | null;
       cacheHitRate: number | null;
     };
   };
@@ -142,6 +143,7 @@ interface BackendStatsOverview {
       successfulSearches: number;
       failedSearches: number;
       averageDurationMs: number | null;
+      averageFirstRouteMs: number | null;
       cacheHitRate: number | null;
     };
     records: {
@@ -332,7 +334,7 @@ function toSearchResult(payload: BackendSearchResponse): SearchResult {
     displayedRoutes: payload.displayedRoutes,
     pathLength: payload.pathLength ?? 0,
     nodesVisited: payload.metrics.nodesVisited,
-    loadTimeMs: Math.round(payload.metrics.durationMs),
+    loadTimeMs: Math.round(payload.metrics.totalRequestMs),
     cacheHit: payload.cached,
     found: payload.found,
     success: payload.success,
@@ -455,6 +457,7 @@ export async function fetchStatsOverview(): Promise<StatsOverview> {
       fastestMs: Math.round(payload.lifetime.records.fastest?.durationMs ?? 0),
       slowestMs: Math.round(payload.lifetime.records.slowest?.durationMs ?? 0),
       averageMs: Math.round(payload.lifetime.totals.averageDurationMs ?? 0),
+      averageFirstRouteMs: Math.round(payload.lifetime.totals.averageFirstRouteMs ?? 0),
       cacheHitRate: payload.lifetime.totals.cacheHitRate ?? 0,
       topConnector: payload.lifetime.top.connectors[0]?.label ?? "No searches yet",
       mostFrequentBridge:
