@@ -10,11 +10,13 @@ interface SettingsPanelProps {
   routeLimitMax: number;
   wireSpeed: number;
   nodeDrift: number;
+  disallowNewsSites: boolean;
   buttonRef?: { current: HTMLButtonElement | null };
   onGraphScaleChange: (value: number) => void;
   onRouteLimitChange: (value: number) => void;
   onWireSpeedChange: (value: number) => void;
   onNodeDriftChange: (value: number) => void;
+  onDisallowNewsSitesChange: (value: boolean) => void;
   onClose: () => void;
 }
 
@@ -83,17 +85,103 @@ function SliderRow({
   );
 }
 
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 14,
+        width: '100%',
+        background: 'rgba(10,12,24,0.54)',
+        border: '1px solid rgba(170,175,215,0.14)',
+        borderRadius: 8,
+        padding: '10px 12px',
+        color: 'inherit',
+        cursor: 'pointer',
+        textAlign: 'left'
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-azeret), monospace',
+            fontSize: 9,
+            letterSpacing: '1.4px',
+            textTransform: 'uppercase',
+            color: 'rgba(150,155,190,0.72)'
+          }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            fontFamily: 'var(--font-syne), sans-serif',
+            fontSize: 12,
+            lineHeight: 1.35,
+            color: 'rgba(214,219,242,0.82)'
+          }}
+        >
+          {description}
+        </span>
+      </div>
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'relative',
+          flexShrink: 0,
+          width: 38,
+          height: 22,
+          borderRadius: 999,
+          background: checked ? 'rgba(208,214,248,0.28)' : 'rgba(92,97,126,0.42)',
+          border: `1px solid ${checked ? 'rgba(220,225,255,0.42)' : 'rgba(134,139,170,0.24)'}`,
+          transition: 'background 0.18s ease, border-color 0.18s ease'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: checked ? 18 : 2,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: checked ? 'rgba(242,244,255,0.96)' : 'rgba(200,204,228,0.72)',
+            boxShadow: checked ? '0 0 16px rgba(185,190,235,0.3)' : 'none',
+            transition: 'left 0.18s ease, background 0.18s ease, box-shadow 0.18s ease'
+          }}
+        />
+      </span>
+    </button>
+  );
+}
+
 export default function SettingsPanel({
   graphScale,
   routeLimit,
   routeLimitMax,
   wireSpeed,
   nodeDrift,
+  disallowNewsSites,
   buttonRef,
   onGraphScaleChange,
   onRouteLimitChange,
   onWireSpeedChange,
   onNodeDriftChange,
+  onDisallowNewsSitesChange,
   onClose
 }: SettingsPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -216,6 +304,12 @@ export default function SettingsPanel({
           step={0.1}
           value={nodeDrift}
           onChange={onNodeDriftChange}
+        />
+        <ToggleRow
+          label="Disallow news sites"
+          description="Hide shortest routes that pass through news organization articles."
+          checked={disallowNewsSites}
+          onChange={onDisallowNewsSitesChange}
         />
       </div>
     </motion.div>

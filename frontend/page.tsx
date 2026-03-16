@@ -22,6 +22,43 @@ const GRAPH_VIEWBOX_WIDTH = 1200;
 const GRAPH_VIEWBOX_HEIGHT = 700;
 const GRAPH_SECTION_TOP = 340;
 const SEARCH_TO_GRAPH_GAP = 72;
+const NEWS_SITE_PATTERNS = [
+  /\babc news\b/i,
+  /\bassociated press\b/i,
+  /\bap news\b/i,
+  /\baxios\b/i,
+  /\bbbc(?: news)?\b/i,
+  /\bbloomberg(?: news)?\b/i,
+  /\bbuzzfeed news\b/i,
+  /\bcbs news\b/i,
+  /\bcnn\b/i,
+  /\bdaily mail\b/i,
+  /\bfinancial times\b/i,
+  /\bfox news\b/i,
+  /\bguardian\b/i,
+  /\bhuffpost\b/i,
+  /\bindependent\b/i,
+  /\bal jazeera\b/i,
+  /\bla times\b/i,
+  /\blos angeles times\b/i,
+  /\bmsnbc\b/i,
+  /\bnbc news\b/i,
+  /\bnew york post\b/i,
+  /\bnew york times\b/i,
+  /\bnewsweek\b/i,
+  /\bnpr\b/i,
+  /\bpolitico\b/i,
+  /\breuters\b/i,
+  /\bsky news\b/i,
+  /\bthe guardian\b/i,
+  /\bthe hill\b/i,
+  /\bthe wall street journal\b/i,
+  /\btime magazine\b/i,
+  /\busa today\b/i,
+  /\bwashington post\b/i,
+  /\bwall street journal\b/i,
+  /\byahoo news\b/i
+];
 
 function formatMs(ms: number): string {
   if (ms < 1000) {
@@ -74,6 +111,63 @@ function applyRouteDisplayLimit(result: SearchResult | null, routeLimit: number)
   };
 }
 
+function normalizeNewsCheckTitle(title: string): string {
+  return title
+    .replace(/\s+\([^()]+\)$/, '')
+    .replace(/^the\s+/i, '')
+    .trim();
+}
+
+function isNewsSiteNode(node: ArticleNode): boolean {
+  if (node.isStart || node.isEnd) {
+    return false;
+  }
+
+  const candidates = [
+    normalizeNewsCheckTitle(node.title),
+    normalizeNewsCheckTitle(node.canonicalTitle),
+    normalizeNewsCheckTitle(node.displayTitle)
+  ];
+
+  return candidates.some((candidate) => NEWS_SITE_PATTERNS.some((pattern) => pattern.test(candidate)));
+}
+
+function applyDisplayFilters(
+  result: SearchResult | null,
+  routeLimit: number,
+  disallowNewsSites: boolean
+): {
+  result: SearchResult | null;
+  hiddenNewsRouteCount: number;
+  allRoutesFiltered: boolean;
+} {
+  if (!result || !result.success || result.routes.length === 0) {
+    return {
+      result: applyRouteDisplayLimit(result, routeLimit),
+      hiddenNewsRouteCount: 0,
+      allRoutesFiltered: false,
+    };
+  }
+
+  const filteredRoutes = disallowNewsSites
+    ? result.routes.filter((route) => !route.path.some((node) => isNewsSiteNode(node)))
+    : result.routes;
+  const hiddenNewsRouteCount = Math.max(0, result.routes.length - filteredRoutes.length);
+  const limitedRoutes = filteredRoutes.slice(0, Math.max(1, routeLimit));
+  const primaryPath = limitedRoutes[0]?.path ?? [];
+
+  return {
+    result: {
+      ...result,
+      routes: limitedRoutes,
+      path: primaryPath,
+      displayedRoutes: limitedRoutes.length
+    },
+    hiddenNewsRouteCount,
+    allRoutesFiltered: disallowNewsSites && filteredRoutes.length === 0
+  };
+}
+
 function countRenderedGraphNodes(result: SearchResult | null): number {
   if (!result || !result.success) {
     return 0;
@@ -89,7 +183,15 @@ function countRenderedGraphNodes(result: SearchResult | null): number {
   return seen.size;
 }
 
-function buildSearchHelper(result: SearchResult | null, readiness: ReadinessState | null): {
+function buildSearchHelper(
+  result: SearchResult | null,
+  readiness: ReadinessState | null,
+  options?: {
+    disallowNewsSites?: boolean;
+    allRoutesFiltered?: boolean;
+    hiddenNewsRouteCount?: number;
+  }
+): {
   text: string | null;
   tone: 'default' | 'error';
 } {
@@ -107,6 +209,13 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
     };
   }
 
+  if (options?.allRoutesFiltered) {
+    return {
+      text: 'Every displayed shortest route uses a news-site article. Turn off "Disallow news sites" to see them.',
+      tone: 'error',
+    };
+  }
+
   if (result?.success && result.partial) {
     return {
       text: `First shortest path found in ${formatMs(result.diagnostics.firstRouteMs)}. Mapping the rest...`,
@@ -115,6 +224,15 @@ function buildSearchHelper(result: SearchResult | null, readiness: ReadinessStat
   }
 
   if (!result || result.success) {
+    if (options?.disallowNewsSites && (options.hiddenNewsRouteCount ?? 0) > 0) {
+      return {
+        text:
+          options.hiddenNewsRouteCount === 1
+            ? '1 shortest route using a news-site article is hidden.'
+            : `${options.hiddenNewsRouteCount} shortest routes using news-site articles are hidden.`,
+        tone: 'default',
+      };
+    }
     return {
       text: null,
       tone: 'default',
@@ -191,6 +309,10 @@ function ResultMeta({
   }, [detailsOpen]);
 
   if (!result || !result.success) {
+    return null;
+  }
+
+  if (result.path.length === 0 || result.routes.length === 0) {
     return null;
   }
 
@@ -574,6 +696,7 @@ export default function Home() {
   const [routeLimit, setRouteLimit] = useState(5);
   const [wireSpeed, setWireSpeed] = useState(1);
   const [nodeDrift, setNodeDrift] = useState(1);
+  const [disallowNewsSites, setDisallowNewsSites] = useState(false);
   const [graphTopAnchorY, setGraphTopAnchorY] = useState<number | null>(null);
   const [graphViewportSize, setGraphViewportSize] = useState({ width: 0, height: 0 });
   const [searchBlockHeight, setSearchBlockHeight] = useState(0);
@@ -630,6 +753,20 @@ export default function Home() {
 
     return () => window.clearInterval(intervalId);
   }, [readiness?.status, refreshBackendState]);
+
+  useEffect(() => {
+    const savedPreference = window.localStorage.getItem('seven-degrees:disallow-news-sites');
+    if (savedPreference === 'true') {
+      setDisallowNewsSites(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'seven-degrees:disallow-news-sites',
+      disallowNewsSites ? 'true' : 'false'
+    );
+  }, [disallowNewsSites]);
 
   useEffect(() => {
     const updateViewportWidth = () => {
@@ -893,14 +1030,19 @@ export default function Home() {
   }, []);
 
   const routeLimitMax = 100;
-  const displayResult = useMemo(
-    () => applyRouteDisplayLimit(result, routeLimit),
-    [result, routeLimit]
+  const displayState = useMemo(
+    () => applyDisplayFilters(result, routeLimit, disallowNewsSites),
+    [disallowNewsSites, result, routeLimit]
   );
+  const displayResult = displayState.result;
   const isMobileLayout = viewportWidth > 0 ? viewportWidth <= 768 : false;
   const hasResultLayout = Boolean(result);
-  const hasGraph = Boolean(displayResult?.success);
-  const helper = buildSearchHelper(displayResult, readiness);
+  const hasGraph = Boolean(displayResult?.success && displayResult.path.length > 0);
+  const helper = buildSearchHelper(displayResult, readiness, {
+    disallowNewsSites,
+    allRoutesFiltered: displayState.allRoutesFiltered,
+    hiddenNewsRouteCount: displayState.hiddenNewsRouteCount,
+  });
   const searchTop = (() => {
     if (isMobileLayout) {
       return 0;
@@ -1090,11 +1232,13 @@ export default function Home() {
             routeLimitMax={routeLimitMax}
             wireSpeed={wireSpeed}
             nodeDrift={nodeDrift}
+            disallowNewsSites={disallowNewsSites}
             buttonRef={settingsButtonRef}
             onGraphScaleChange={setGraphScale}
             onRouteLimitChange={setRouteLimit}
             onWireSpeedChange={setWireSpeed}
             onNodeDriftChange={setNodeDrift}
+            onDisallowNewsSitesChange={setDisallowNewsSites}
             onClose={() => setSettingsOpen(false)}
           />
         )}
