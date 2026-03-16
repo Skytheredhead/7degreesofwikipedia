@@ -420,7 +420,7 @@ function HistoryButton({
       title="History"
       style={{
         position: 'fixed',
-        bottom: 20,
+        bottom: 'calc(20px + env(safe-area-inset-bottom))',
         left: 20,
         width: 38,
         height: 38,
@@ -505,7 +505,7 @@ function HistoryPanel({
       transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
       style={{
         position: 'fixed',
-        bottom: 66,
+        bottom: 'calc(66px + env(safe-area-inset-bottom))',
         left: 20,
         width: 320,
         maxWidth: 'calc(100vw - 40px)',
@@ -577,6 +577,7 @@ export default function Home() {
   const [graphTopAnchorY, setGraphTopAnchorY] = useState<number | null>(null);
   const [graphViewportSize, setGraphViewportSize] = useState({ width: 0, height: 0 });
   const [searchBlockHeight, setSearchBlockHeight] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const graphViewportRef = useRef<HTMLDivElement | null>(null);
   const searchBlockRef = useRef<HTMLDivElement | null>(null);
   const historyButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -629,6 +630,16 @@ export default function Home() {
 
     return () => window.clearInterval(intervalId);
   }, [readiness?.status, refreshBackendState]);
+
+  useEffect(() => {
+    const updateViewportWidth = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
+    return () => window.removeEventListener('resize', updateViewportWidth);
+  }, []);
 
   useEffect(() => {
     const element = graphViewportRef.current;
@@ -886,11 +897,14 @@ export default function Home() {
     () => applyRouteDisplayLimit(result, routeLimit),
     [result, routeLimit]
   );
-  const isMobileLayout = graphViewportSize.width > 0 ? graphViewportSize.width <= 768 : false;
+  const isMobileLayout = viewportWidth > 0 ? viewportWidth <= 768 : false;
   const hasResultLayout = Boolean(result);
   const hasGraph = Boolean(displayResult?.success);
   const helper = buildSearchHelper(displayResult, readiness);
   const searchTop = (() => {
+    if (isMobileLayout) {
+      return 0;
+    }
     if (!hasResultLayout) {
       return '58%';
     }
@@ -919,20 +933,24 @@ export default function Home() {
           position: 'relative',
           zIndex: 1,
           width: '100%',
-          minHeight: '100vh',
-          overflow: 'hidden',
+          minHeight: isMobileLayout ? '100svh' : '100vh',
+          overflowX: 'hidden',
+          overflowY: isMobileLayout ? 'auto' : 'hidden',
+          paddingTop: isMobileLayout ? 'calc(20px + env(safe-area-inset-top))' : 0,
+          paddingBottom: isMobileLayout ? 'calc(116px + env(safe-area-inset-bottom))' : 0,
         }}
       >
         <div
           style={{
-            position: 'absolute',
-            top: isMobileLayout ? 80 : 36,
-            left: isMobileLayout ? 20 : 40,
-            right: isMobileLayout ? 20 : undefined,
+            position: isMobileLayout ? 'relative' : 'absolute',
+            top: isMobileLayout ? undefined : 36,
+            left: isMobileLayout ? undefined : 40,
+            right: isMobileLayout ? undefined : undefined,
             zIndex: 10,
             display: 'flex',
             justifyContent: isMobileLayout ? 'center' : 'flex-start',
             pointerEvents: 'none',
+            padding: isMobileLayout ? '44px 20px 0' : 0,
           }}
         >
           <button
@@ -944,13 +962,13 @@ export default function Home() {
               cursor: 'pointer',
               fontFamily: 'var(--font-syne), sans-serif',
               fontWeight: 800,
-              fontSize: isMobileLayout ? 'clamp(2.7rem, 8.8vw, 3.5rem)' : 24,
-              letterSpacing: isMobileLayout ? '-1.4px' : '-0.5px',
+              fontSize: isMobileLayout ? 'clamp(2.25rem, 7.8vw, 3rem)' : 24,
+              letterSpacing: isMobileLayout ? '-1.1px' : '-0.5px',
               color: isMobileLayout ? 'rgba(240,242,255,0.96)' : 'rgba(228,230,248,0.88)',
               lineHeight: 1,
               transition: 'color 0.2s, opacity 0.2s',
               textAlign: isMobileLayout ? 'center' : 'left',
-              maxWidth: isMobileLayout ? 420 : undefined,
+              maxWidth: isMobileLayout ? 360 : undefined,
               textWrap: 'balance',
               textShadow: isMobileLayout ? '0 0 28px rgba(132, 142, 208, 0.16)' : 'none',
               pointerEvents: 'auto',
@@ -972,13 +990,15 @@ export default function Home() {
 
         <div
           style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
+            position: isMobileLayout ? 'relative' : 'absolute',
+            left: isMobileLayout ? undefined : 0,
+            right: isMobileLayout ? undefined : 0,
             zIndex: 20,
             display: 'flex',
             justifyContent: 'center',
-            top: searchTop,
+            top: isMobileLayout ? undefined : searchTop,
+            marginTop: isMobileLayout ? 52 : 0,
+            padding: isMobileLayout ? '0 20px' : 0,
           }}
         >
           <motion.div
@@ -989,7 +1009,7 @@ export default function Home() {
             }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             style={{
-              width: isMobileLayout ? 'min(420px, calc(100vw - 40px))' : 'min(720px, 92vw)',
+              width: isMobileLayout ? 'min(420px, 100%)' : 'min(720px, 92vw)',
               display: 'flex',
               flexDirection: 'column',
               gap: isMobileLayout ? 12 : 14,
@@ -1022,14 +1042,17 @@ export default function Home() {
         <div
           ref={graphViewportRef}
           style={{
-            position: 'absolute',
-            inset: 0,
-            top: 340,
-            bottom: 46,
+            position: isMobileLayout ? 'relative' : 'absolute',
+            inset: isMobileLayout ? undefined : 0,
+            top: isMobileLayout ? undefined : 340,
+            bottom: isMobileLayout ? undefined : 46,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '0 24px',
+            padding: isMobileLayout ? '0 20px' : '0 24px',
+            marginTop: isMobileLayout ? (hasGraph ? 28 : 0) : 0,
+            minHeight: isMobileLayout && hasGraph ? 280 : 0,
+            height: isMobileLayout ? (hasGraph ? 'min(46svh, 380px)' : 0) : undefined,
           }}
         >
           <AnimatePresence mode="wait">

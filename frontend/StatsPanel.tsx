@@ -122,7 +122,7 @@ export default function StatsPanel({ stats, onClose, buttonRef }: StatsPanelProp
       className="stats-panel"
       style={{
         position: 'fixed',
-        bottom: 66,
+        bottom: 'calc(66px + env(safe-area-inset-bottom))',
         left: 66,
         width: 280,
         background: 'rgba(7,8,16,0.94)',
@@ -249,7 +249,7 @@ export function StatsButton({
       title="Stats"
       style={{
         position: 'fixed',
-        bottom: 20,
+        bottom: 'calc(20px + env(safe-area-inset-bottom))',
         left: 66,
         width: 36,
         height: 36,

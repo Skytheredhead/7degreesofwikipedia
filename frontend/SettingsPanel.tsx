@@ -126,7 +126,7 @@ export default function SettingsPanel({
       transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
       style={{
         position: 'fixed',
-        bottom: 66,
+        bottom: 'calc(66px + env(safe-area-inset-bottom))',
         left: 112,
         width: 308,
         maxWidth: 'calc(100vw - 132px)',
@@ -239,7 +239,7 @@ export function SettingsButton({
       title="Settings"
       style={{
         position: 'fixed',
-        bottom: 20,
+        bottom: 'calc(20px + env(safe-area-inset-bottom))',
         left: 112,
         width: 36,
         height: 36,
