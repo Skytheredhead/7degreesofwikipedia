@@ -119,7 +119,7 @@ input::placeholder {
   outline: none;
 }
 
-:where(button, input, a, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+:where(button, a, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: none;
   box-shadow:
     0 0 0 1px rgba(214, 220, 250, 0.5),
@@ -132,6 +132,12 @@ input::placeholder {
     border-color 0.18s ease,
     color 0.18s ease,
     background-color 0.18s ease;
+}
+
+input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  scale: 1;
 }
 
 @media (max-width: 768px) {
