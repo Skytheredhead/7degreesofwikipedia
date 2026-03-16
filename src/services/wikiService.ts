@@ -362,6 +362,7 @@ export class WikiService {
       failureReason: response.failureReason,
       cached: response.cached,
       durationMs: response.metrics.totalRequestMs,
+      firstRouteMs: response.metrics.firstRouteMs,
       pathLength: response.pathLength,
       nodesVisited: response.metrics.nodesVisited,
       nodesExpanded: response.metrics.nodesExpanded,

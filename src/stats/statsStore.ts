@@ -19,6 +19,8 @@ function createAggregate(): AggregateSearchStats {
     failedSearches: 0,
     cachedSearches: 0,
     totalDurationMs: 0,
+    totalFirstRouteMs: 0,
+    firstRouteSampleCount: 0,
     totalNodesVisited: 0,
     totalNodesExpanded: 0,
     totalPathLength: 0,
@@ -68,7 +70,10 @@ export class SearchStatsStore {
   constructor() {
     fs.mkdirSync(appConfig.statsDir, { recursive: true });
 
-    this.#lifetime = this.#loadJson<AggregateSearchStats>(appConfig.statsLifetimePath) ?? createAggregate();
+    this.#lifetime = {
+      ...createAggregate(),
+      ...(this.#loadJson<AggregateSearchStats>(appConfig.statsLifetimePath) ?? {})
+    };
     this.#session = createAggregate();
     this.#recent = this.#loadJson<SearchRecord[]>(appConfig.statsRecentPath) ?? [];
   }
@@ -88,6 +93,10 @@ export class SearchStatsStore {
   #updateAggregate(aggregate: AggregateSearchStats, record: SearchRecord): void {
     aggregate.totalSearches += 1;
     aggregate.totalDurationMs += record.durationMs;
+    if (typeof record.firstRouteMs === "number" && Number.isFinite(record.firstRouteMs)) {
+      aggregate.totalFirstRouteMs += record.firstRouteMs;
+      aggregate.firstRouteSampleCount += 1;
+    }
     aggregate.totalNodesVisited += record.nodesVisited;
     aggregate.totalNodesExpanded += record.nodesExpanded;
     if (record.cached) {
@@ -210,6 +219,8 @@ export class SearchStatsStore {
     const aggregate = scope === "session" ? this.#session : this.#lifetime;
     const averageDurationMs =
       aggregate.totalSearches === 0 ? null : aggregate.totalDurationMs / aggregate.totalSearches;
+    const averageFirstRouteMs =
+      aggregate.firstRouteSampleCount === 0 ? null : aggregate.totalFirstRouteMs / aggregate.firstRouteSampleCount;
     const averagePathLength =
       aggregate.successfulPathCount === 0 ? null : aggregate.totalPathLength / aggregate.successfulPathCount;
     const averageNodesVisited =
@@ -232,6 +243,7 @@ export class SearchStatsStore {
         failedSearches: aggregate.failedSearches,
         cachedSearches: aggregate.cachedSearches,
         averageDurationMs,
+        averageFirstRouteMs,
         medianDurationMs: percentileFromHistogram(aggregate.durationHistogram, 0.5),
         p95DurationMs: percentileFromHistogram(aggregate.durationHistogram, 0.95),
         p99DurationMs: percentileFromHistogram(aggregate.durationHistogram, 0.99),

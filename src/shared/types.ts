@@ -175,6 +175,7 @@ export interface SearchRecord {
   failureReason: PathFailureReason;
   cached: boolean;
   durationMs: number;
+  firstRouteMs: number;
   pathLength: number | null;
   nodesVisited: number;
   nodesExpanded: number;
@@ -197,6 +198,8 @@ export interface AggregateSearchStats {
   failedSearches: number;
   cachedSearches: number;
   totalDurationMs: number;
+  totalFirstRouteMs: number;
+  firstRouteSampleCount: number;
   totalNodesVisited: number;
   totalNodesExpanded: number;
   totalPathLength: number;
