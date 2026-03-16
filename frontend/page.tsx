@@ -67,104 +67,6 @@ function formatMs(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function createArticleNode(
-  articleId: number,
-  title: string,
-  position: number,
-  totalNodes: number
-): ArticleNode {
-  const role =
-    position === 0 ? 'start' : position === totalNodes - 1 ? 'end' : 'intermediate';
-
-  return {
-    id: String(articleId),
-    articleId,
-    title,
-    canonicalTitle: title,
-    displayTitle: title,
-    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/\s+/g, '_'))}`,
-    role,
-    isStart: role === 'start',
-    isEnd: role === 'end',
-    index: position,
-    distanceFromStart: position,
-    normalizedDistanceRatio: totalNodes <= 1 ? 0 : position / (totalNodes - 1)
-  };
-}
-
-function createMockPartialResult(): SearchResult {
-  const routeTitles = [
-    ['Gmail', 'Fox News', 'New York City', 'Skyline (disambiguation)', 'Skyline', 'Skyline High School'],
-    ['Gmail', 'Spanish language', 'Metro Atlanta', 'Skyline (disambiguation)', 'Skyline', 'Skyline High School'],
-    ['Gmail', 'Ottawa', 'St. Albans School', 'Skyline (disambiguation)', 'Skyline', 'Skyline High School']
-  ];
-
-  const nodeIds = new Map<string, number>([
-    ['Gmail', 1],
-    ['Fox News', 2],
-    ['New York City', 3],
-    ['Skyline (disambiguation)', 4],
-    ['Skyline', 5],
-    ['Skyline High School', 6],
-    ['Spanish language', 7],
-    ['Metro Atlanta', 8],
-    ['Ottawa', 9],
-    ['St. Albans School', 10]
-  ]);
-
-  const routes = routeTitles.map((titles, routeIndex) => ({
-    routeIndex,
-    path: titles.map((title, position) =>
-      createArticleNode(nodeIds.get(title) ?? position + 1, title, position, titles.length)
-    )
-  }));
-  const primaryPath = routes[0]?.path ?? [];
-
-  return {
-    searchId: 'mock-first-route-preview',
-    searchedAt: new Date(),
-    partial: true,
-    path: primaryPath,
-    routes,
-    totalRoutesFound: '191',
-    displayedRoutes: routes.length,
-    pathLength: Math.max(0, primaryPath.length - 1),
-    nodesVisited: 2128,
-    loadTimeMs: 4600,
-    cacheHit: false,
-    found: true,
-    success: true,
-    failureReason: null,
-    redirectsApplied: false,
-    diagnostics: {
-      resolutionMs: 22,
-      bfsMs: 5,
-      routeEnumerationMs: 4573,
-      totalRequestMs: 4600,
-      firstRouteMs: 5,
-      lastRouteMs: 0,
-      nodesExpanded: 823,
-      frontierExpansions: 126,
-      forwardVisited: 1096,
-      reverseVisited: 1032,
-    },
-    start: {
-      query: 'Gmail',
-      found: true,
-      matchedTitle: 'Gmail',
-      canonicalTitle: 'Gmail',
-      viaRedirect: false,
-    },
-    end: {
-      query: 'Skyline High School',
-      found: true,
-      matchedTitle: 'Skyline High School',
-      canonicalTitle: 'Skyline High School',
-      viaRedirect: false,
-    },
-  };
-}
-
 function createEmptyStats(): StatData {
   return {
     totalSearches: 0,
@@ -716,68 +618,6 @@ function HistoryButton({
   );
 }
 
-function MockProgressButton({
-  onClick,
-  isActive
-}: {
-  onClick: () => void;
-  isActive: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title="Preview the mocked first-route state"
-      style={{
-        position: 'fixed',
-        right: 20,
-        bottom: 'calc(20px + env(safe-area-inset-bottom))',
-        minHeight: 38,
-        padding: '0 14px',
-        borderRadius: 999,
-        background: isActive ? 'rgba(176,182,224,0.18)' : 'rgba(8,9,18,0.82)',
-        border: `1px solid ${isActive ? 'rgba(208,214,248,0.34)' : 'rgba(140,145,185,0.2)'}`,
-        color: isActive ? 'rgba(244,246,255,0.96)' : 'rgba(214,219,242,0.82)',
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        zIndex: 420,
-        transition: 'all 0.2s',
-        backdropFilter: 'blur(10px)',
-        fontFamily: 'var(--font-azeret), monospace',
-        fontSize: 10,
-        letterSpacing: '1.2px',
-        textTransform: 'uppercase',
-      }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.borderColor = 'rgba(200,205,240,0.4)';
-        event.currentTarget.style.background = 'rgba(160,165,210,0.12)';
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.borderColor = isActive
-          ? 'rgba(208,214,248,0.34)'
-          : 'rgba(140,145,185,0.2)';
-        event.currentTarget.style.background = isActive
-          ? 'rgba(176,182,224,0.18)'
-          : 'rgba(8,9,18,0.82)';
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: isActive ? 'rgba(232,236,255,0.96)' : 'rgba(170,175,215,0.7)',
-          boxShadow: isActive ? '0 0 14px rgba(190,196,245,0.38)' : 'none',
-        }}
-      />
-      {isActive ? 'Exit Mock State' : 'Mock Progress'}
-    </button>
-  );
-}
-
 function HistoryPanel({
   searches,
   onClose,
@@ -889,7 +729,6 @@ export default function Home() {
   const [wireSpeed, setWireSpeed] = useState(1);
   const [nodeDrift, setNodeDrift] = useState(1);
   const [disallowNewsSites, setDisallowNewsSites] = useState(false);
-  const [mockProgressOpen, setMockProgressOpen] = useState(false);
   const [graphTopAnchorY, setGraphTopAnchorY] = useState<number | null>(null);
   const [graphViewportSize, setGraphViewportSize] = useState({ width: 0, height: 0 });
   const [searchBlockHeight, setSearchBlockHeight] = useState(0);
@@ -1023,7 +862,6 @@ export default function Home() {
     searchAbortRef.current = abortController;
     searchRunIdRef.current += 1;
     const searchRunId = searchRunIdRef.current;
-    setMockProgressOpen(false);
     setResult(null);
     setSearchState('loading');
 
@@ -1131,7 +969,6 @@ export default function Home() {
   }, []);
 
   const handlePairSelect = useCallback((start: string, end: string) => {
-    setMockProgressOpen(false);
     setStartValue(start);
     setEndValue(end);
     setCommittedStartValue(start);
@@ -1180,7 +1017,6 @@ export default function Home() {
 
   const handleHomeReset = useCallback(() => {
     searchAbortRef.current?.abort();
-    setMockProgressOpen(false);
     setSearchState('idle');
     setResult(null);
     setStartValue('');
@@ -1191,26 +1027,6 @@ export default function Home() {
     setHistoryOpen(false);
     setSettingsOpen(false);
   }, []);
-
-  const toggleMockProgress = useCallback(() => {
-    searchAbortRef.current?.abort();
-    if (mockProgressOpen) {
-      handleHomeReset();
-      return;
-    }
-
-    const mockResult = createMockPartialResult();
-    setMockProgressOpen(true);
-    setSearchState('loading');
-    setResult(mockResult);
-    setStartValue(mockResult.start.canonicalTitle ?? mockResult.start.query);
-    setEndValue(mockResult.end.canonicalTitle ?? mockResult.end.query);
-    setCommittedStartValue(mockResult.start.canonicalTitle ?? mockResult.start.query);
-    setCommittedEndValue(mockResult.end.canonicalTitle ?? mockResult.end.query);
-    setHistoryOpen(false);
-    setStatsOpen(false);
-    setSettingsOpen(false);
-  }, [handleHomeReset, mockProgressOpen]);
 
   const toggleHistoryPanel = useCallback(() => {
     setHistoryOpen((open) => {
@@ -1481,7 +1297,6 @@ export default function Home() {
       <SettingsButton onClick={toggleSettingsPanel} isOpen={settingsOpen} buttonRef={settingsButtonRef} />
       <StatsButton onClick={toggleStatsPanel} isOpen={statsOpen} buttonRef={statsButtonRef} />
       <HistoryButton onClick={toggleHistoryPanel} isOpen={historyOpen} buttonRef={historyButtonRef} />
-      <MockProgressButton onClick={toggleMockProgress} isActive={mockProgressOpen} />
     </>
   );
 }

@@ -184,16 +184,16 @@ function InputField({
     inputRef.current?.blur();
   };
 
-  const commitBestSuggestion = async (rawValue: string) => {
+  const resolveBestSuggestion = async (rawValue: string): Promise<ArticleSuggestion | undefined> => {
     const trimmed = rawValue.trim();
     if (disabled || trimmed.length < 2) {
-      return;
+      return undefined;
     }
 
     const normalizedQuery = trimmed.toLowerCase();
     const currentValue = latestValueRef.current.trim().toLowerCase();
     if (currentValue !== normalizedQuery) {
-      return;
+      return undefined;
     }
 
     let bestSuggestion: ArticleSuggestion | undefined;
@@ -204,15 +204,24 @@ function InputField({
       try {
         bestSuggestion = (await getSuggestions(trimmed))[0];
       } catch {
-        return;
+        return undefined;
       }
     }
 
     if (!bestSuggestion?.canonicalTitle) {
-      return;
+      return undefined;
     }
 
     if (latestValueRef.current.trim().toLowerCase() !== normalizedQuery) {
+      return undefined;
+    }
+
+    return bestSuggestion;
+  };
+
+  const commitBestSuggestion = async (rawValue: string) => {
+    const bestSuggestion = await resolveBestSuggestion(rawValue);
+    if (!bestSuggestion) {
       return;
     }
 
@@ -289,9 +298,7 @@ function InputField({
             }
 
             if (event.key === 'Tab') {
-              if (hasFreshSuggestions) {
-                onChange(suggestions[0]!.canonicalTitle);
-              }
+              void commitBestSuggestion(event.currentTarget.value);
               setSuggestions([]);
               setSuggestionsQuery('');
             }
