@@ -51,12 +51,12 @@ const FLOAT_AMP = 5;
 const SPRING_K = 0.06;
 const SPRING_D = 0.82;
 const DRAG_CLICK_THRESHOLD = 8;
-const FRAME_PADDING_X = 180;
-const MAX_NODE_TEXT_WIDTH = 220;
-const MAX_SPECIAL_NODE_TEXT_WIDTH = 170;
+const FRAME_PADDING_X = 124;
+const MAX_NODE_TEXT_WIDTH = 188;
+const MAX_SPECIAL_NODE_TEXT_WIDTH = 150;
 
 function estimateTextWidth(text: string): number {
-  return text.length * 7.6;
+  return text.length * 6.9;
 }
 
 function truncateWithEllipsis(text: string, maxChars: number): string {
@@ -591,7 +591,7 @@ export default function ConstellationGraph({
     const lineHeight = graphNode.node.isStart || graphNode.node.isEnd ? 15 : 14;
     return {
       lines,
-      w: Math.min(maxTextWidth, widestLine) + 26,
+      w: Math.min(maxTextWidth, widestLine) + 18,
       h: Math.max(26, lines.length * lineHeight + 14),
       lineHeight
     };
@@ -716,7 +716,7 @@ export default function ConstellationGraph({
 
         const nodeOpacity = isHovered ? 1 : isAdjacentToHovered ? 0.88 : 0.72;
         const borderOpacity = isHovered ? 0.95 : isSpecial ? 0.72 : 0.28 + (graphNode.routeHits / 5) * 0.24;
-        const scaleFactor = isSpecial ? 1.15 : 1;
+        const scaleFactor = isSpecial ? 1.08 : 1;
         const width = layout.w * scaleFactor;
         const height = layout.h * (isSpecial ? 1.12 : 1);
         const fontSize = isSpecial ? 13.5 : 12;
