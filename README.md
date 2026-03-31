@@ -133,7 +133,7 @@ bash deploy/start-backend.sh
 Or with explicit settings:
 
 ```bash
-HOST=127.0.0.1 PORT=7878 bash deploy/start-backend.sh
+HOST=0.0.0.0 PORT=7878 bash deploy/start-backend.sh
 ```
 
 ### Cloudflare Tunnel
@@ -158,6 +158,21 @@ The important topology is:
 5. The Linux machine runs only the backend
 
 ## API Surface
+
+### `GET /health`
+
+Lightweight liveness endpoint for monitors and load balancers.
+
+Response shape:
+
+```json
+{
+  "ok": true,
+  "status": {
+    "ready": true
+  }
+}
+```
 
 ### `GET /api/status`
 

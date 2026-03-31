@@ -14,7 +14,7 @@ export const appConfig = {
   statsRecentPath: path.join(rootDir, "artifacts", "stats", "recent.json"),
   statsLogPath: path.join(rootDir, "artifacts", "stats", "searches.ndjson"),
   defaultPort: Number(process.env.PORT ?? 7878),
-  defaultHost: process.env.HOST ?? "127.0.0.1",
+  defaultHost: process.env.HOST ?? "0.0.0.0",
   autocompleteDefaultLimit: 12,
   autocompleteMaxLimit: 50,
   recentSearchLimit: 100,

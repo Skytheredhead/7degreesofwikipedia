@@ -11,13 +11,13 @@
     "frontend:build": "npm --prefix frontend run build",
     "frontend:start": "npm --prefix frontend run start",
     "prestart": "npm run build",
-    "start": "node --max-old-space-size=65536 dist/server/index.js",
+    "start": "node --max-old-space-size=16384 dist/server/index.js",
     "prebuild:graph": "npm run build",
-    "build:graph": "node --max-old-space-size=65536 dist/build/cli.js",
+    "build:graph": "node --max-old-space-size=16384 dist/build/cli.js",
     "precli": "npm run build",
-    "cli": "node --max-old-space-size=65536 dist/cli/index.js",
+    "cli": "node --max-old-space-size=16384 dist/cli/index.js",
     "preinspect:artifact": "npm run build",
-    "inspect:artifact": "node --max-old-space-size=65536 dist/runtime/inspectArtifact.js"
+    "inspect:artifact": "node --max-old-space-size=16384 dist/runtime/inspectArtifact.js"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",
