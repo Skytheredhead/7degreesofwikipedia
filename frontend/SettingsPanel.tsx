@@ -319,11 +319,13 @@ export default function SettingsPanel({
 export function SettingsButton({
   onClick,
   isOpen,
-  buttonRef
+  buttonRef,
+  isMobileLayout = false
 }: {
   onClick: () => void;
   isOpen: boolean;
   buttonRef?: { current: HTMLButtonElement | null };
+  isMobileLayout?: boolean;
 }) {
   return (
     <button
@@ -334,7 +336,7 @@ export function SettingsButton({
       style={{
         position: 'fixed',
         bottom: 'calc(20px + env(safe-area-inset-bottom))',
-        left: 112,
+        left: isMobileLayout ? 112 : 'calc(50% + 28px)',
         width: 36,
         height: 36,
         borderRadius: '50%',

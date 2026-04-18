@@ -236,11 +236,13 @@ export default function StatsPanel({ stats, onClose, buttonRef }: StatsPanelProp
 export function StatsButton({
   onClick,
   isOpen,
-  buttonRef
+  buttonRef,
+  isMobileLayout = false
 }: {
   onClick: () => void;
   isOpen: boolean;
   buttonRef?: { current: HTMLButtonElement | null };
+  isMobileLayout?: boolean;
 }) {
   return (
     <button
@@ -251,7 +253,7 @@ export function StatsButton({
       style={{
         position: 'fixed',
         bottom: 'calc(20px + env(safe-area-inset-bottom))',
-        left: 66,
+        left: isMobileLayout ? 66 : 'calc(50% - 18px)',
         width: 36,
         height: 36,
         borderRadius: '50%',

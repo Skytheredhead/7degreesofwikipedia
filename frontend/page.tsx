@@ -561,11 +561,13 @@ function RecentSearches({ searches, onSelect }: { searches: RecentSearch[]; onSe
 function HistoryButton({
   onClick,
   isOpen,
-  buttonRef
+  buttonRef,
+  isMobileLayout = false
 }: {
   onClick: () => void;
   isOpen: boolean;
   buttonRef?: { current: HTMLButtonElement | null };
+  isMobileLayout?: boolean;
 }) {
   return (
     <button
@@ -576,7 +578,7 @@ function HistoryButton({
       style={{
         position: 'fixed',
         bottom: 'calc(20px + env(safe-area-inset-bottom))',
-        left: 20,
+        left: isMobileLayout ? 20 : 'calc(50% - 64px)',
         width: 38,
         height: 38,
         borderRadius: '50%',
@@ -1109,6 +1111,8 @@ export default function Home() {
           zIndex: 1,
           width: '100%',
           minHeight: isMobileLayout ? '100svh' : '100vh',
+          display: isMobileLayout && !hasGraph ? 'flex' : undefined,
+          flexDirection: isMobileLayout && !hasGraph ? 'column' : undefined,
           overflowX: 'hidden',
           overflowY: isMobileLayout ? 'auto' : 'hidden',
           paddingTop: isMobileLayout ? 'calc(20px + env(safe-area-inset-top))' : 0,
@@ -1119,11 +1123,11 @@ export default function Home() {
           style={{
             position: isMobileLayout ? 'relative' : 'absolute',
             top: isMobileLayout ? undefined : 36,
-            left: isMobileLayout ? undefined : 40,
-            right: isMobileLayout ? undefined : undefined,
+            left: isMobileLayout ? undefined : 0,
+            right: isMobileLayout ? undefined : 0,
             zIndex: 10,
             display: 'flex',
-            justifyContent: isMobileLayout ? 'center' : 'flex-start',
+            justifyContent: 'center',
             pointerEvents: 'none',
             padding: isMobileLayout ? '44px 20px 0' : 0,
           }}
@@ -1170,9 +1174,11 @@ export default function Home() {
             right: isMobileLayout ? undefined : 0,
             zIndex: 20,
             display: 'flex',
+            alignItems: isMobileLayout && !hasGraph ? 'center' : undefined,
             justifyContent: 'center',
+            flex: isMobileLayout && !hasGraph ? '1 1 auto' : undefined,
             top: isMobileLayout ? undefined : searchTop,
-            marginTop: isMobileLayout ? 52 : 0,
+            marginTop: isMobileLayout ? (hasGraph ? 28 : 0) : 0,
             padding: isMobileLayout ? '0 20px' : 0,
           }}
         >
@@ -1180,7 +1186,7 @@ export default function Home() {
             ref={searchBlockRef}
             initial={false}
             animate={{
-              y: hasResultLayout ? 0 : -28
+              y: hasResultLayout || isMobileLayout ? 0 : -28
             }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             style={{
@@ -1295,9 +1301,24 @@ export default function Home() {
           />
         )}
       </AnimatePresence>
-      <SettingsButton onClick={toggleSettingsPanel} isOpen={settingsOpen} buttonRef={settingsButtonRef} />
-      <StatsButton onClick={toggleStatsPanel} isOpen={statsOpen} buttonRef={statsButtonRef} />
-      <HistoryButton onClick={toggleHistoryPanel} isOpen={historyOpen} buttonRef={historyButtonRef} />
+      <SettingsButton
+        onClick={toggleSettingsPanel}
+        isOpen={settingsOpen}
+        buttonRef={settingsButtonRef}
+        isMobileLayout={isMobileLayout}
+      />
+      <StatsButton
+        onClick={toggleStatsPanel}
+        isOpen={statsOpen}
+        buttonRef={statsButtonRef}
+        isMobileLayout={isMobileLayout}
+      />
+      <HistoryButton
+        onClick={toggleHistoryPanel}
+        isOpen={historyOpen}
+        buttonRef={historyButtonRef}
+        isMobileLayout={isMobileLayout}
+      />
     </>
   );
 }
