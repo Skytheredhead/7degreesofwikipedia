@@ -87,7 +87,6 @@ html, body {
   background-size: 200px 200px;
   opacity: 0.032;
   pointer-events: none;
-  animation: grainShift 0.15s steps(1) infinite;
   z-index: 100;
 }
 

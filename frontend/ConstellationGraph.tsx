@@ -9,6 +9,7 @@ interface ConstellationGraphProps {
   onTopAnchorChange?: (topNodeY: number) => void;
   wireSpeed?: number;
   nodeDrift?: number;
+  isCompactLayout?: boolean;
 }
 
 interface GraphNode {
@@ -330,7 +331,8 @@ export default function ConstellationGraph({
   onNodeClick,
   onTopAnchorChange,
   wireSpeed = 1,
-  nodeDrift = 1
+  nodeDrift = 1,
+  isCompactLayout = false
 }: ConstellationGraphProps) {
   const graph = useMemo(() => buildGraph(result), [result]);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -354,6 +356,79 @@ export default function ConstellationGraph({
   const keyToIndex = useMemo(
     () => new Map(graph.nodes.map((graphNode, index) => [graphNode.key, index])),
     [graph.nodes]
+  );
+
+  const updateGraphDom = useCallback(
+    (nodes: PhysicsNode[], pulseTime = 0) => {
+      nodes.forEach((node, index) => {
+        const group = nodeGroupRefs.current[index];
+        if (group) {
+          group.setAttribute('transform', `translate(${node.x.toFixed(2)},${node.y.toFixed(2)})`);
+        }
+      });
+
+      if (onTopAnchorChange) {
+        let minTopY = Number.POSITIVE_INFINITY;
+        for (const node of nodes) {
+          const anchorY = node.isDragging ? node.y : node.baseY;
+          if (anchorY < minTopY) {
+            minTopY = anchorY;
+          }
+        }
+        if (
+          Number.isFinite(minTopY) &&
+          (reportedTopYRef.current === null || Math.abs(reportedTopYRef.current - minTopY) > 1)
+        ) {
+          reportedTopYRef.current = minTopY;
+          onTopAnchorChange(minTopY);
+        }
+      }
+
+      graph.edges.forEach((edge, index) => {
+        const fromIndex = keyToIndex.get(edge.fromKey);
+        const toIndex = keyToIndex.get(edge.toKey);
+        if (fromIndex === undefined || toIndex === undefined) {
+          return;
+        }
+
+        const from = nodes[fromIndex];
+        const to = nodes[toIndex];
+        if (!from || !to) {
+          return;
+        }
+
+        const edgeGroup = edgeGroupRefs.current[index];
+        if (edgeGroup) {
+          const lines = edgeGroup.querySelectorAll('line');
+          lines.forEach((line) => {
+            line.setAttribute('x1', from.x.toFixed(2));
+            line.setAttribute('y1', from.y.toFixed(2));
+            line.setAttribute('x2', to.x.toFixed(2));
+            line.setAttribute('y2', to.y.toFixed(2));
+          });
+        }
+
+        const pulse = pulseRefs.current[index];
+        if (!pulse || wireSpeed <= 0) {
+          return;
+        }
+
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const dashLen = Math.max(26, len * 0.18);
+        const speed = 38 * wireSpeed;
+        const offset = -(((pulseTime * speed) % (len + dashLen)) - dashLen);
+
+        pulse.setAttribute('x1', from.x.toFixed(2));
+        pulse.setAttribute('y1', from.y.toFixed(2));
+        pulse.setAttribute('x2', to.x.toFixed(2));
+        pulse.setAttribute('y2', to.y.toFixed(2));
+        pulse.setAttribute('stroke-dasharray', `${dashLen} ${len}`);
+        pulse.setAttribute('stroke-dashoffset', offset.toFixed(2));
+      });
+    },
+    [graph.edges, keyToIndex, onTopAnchorChange, wireSpeed]
   );
 
   useEffect(() => {
@@ -392,18 +467,29 @@ export default function ConstellationGraph({
   useEffect(() => {
     let startTime = performance.now();
     let pulseTime = 0;
+    let lastFrameTime = 0;
+    const shouldAnimate = nodeDrift > 0 || wireSpeed > 0;
+    const targetFrameMs = 1000 / 30;
 
     const tick = (now: number) => {
-      const elapsed = (now - startTime) / 1000;
-      pulseTime += 0.016;
-      const nodes = physicsRef.current;
-
-      if (!nodes.length) {
+      if (shouldAnimate && now - lastFrameTime < targetFrameMs) {
         animFrameRef.current = requestAnimationFrame(tick);
         return;
       }
+      lastFrameTime = now;
 
-      nodes.forEach((node, index) => {
+      const elapsed = (now - startTime) / 1000;
+      pulseTime += targetFrameMs / 1000;
+      const nodes = physicsRef.current;
+
+      if (!nodes.length) {
+        if (shouldAnimate) {
+          animFrameRef.current = requestAnimationFrame(tick);
+        }
+        return;
+      }
+
+      nodes.forEach((node) => {
         const floatX = FLOAT_AMP * nodeDrift * Math.sin(elapsed * node.floatFreqX + node.floatPhaseX);
         const floatY = FLOAT_AMP * nodeDrift * Math.sin(elapsed * node.floatFreqY + node.floatPhaseY);
         const targetX = node.baseX + floatX + node.pullX;
@@ -424,79 +510,18 @@ export default function ConstellationGraph({
           node.pullX += node.pullVX;
           node.pullY += node.pullVY;
         }
-
-        const group = nodeGroupRefs.current[index];
-        if (group) {
-          group.setAttribute('transform', `translate(${node.x.toFixed(2)},${node.y.toFixed(2)})`);
-        }
       });
 
-      if (onTopAnchorChange) {
-        let minTopY = Number.POSITIVE_INFINITY;
-        for (const node of nodes) {
-          const anchorY = node.isDragging ? node.y : node.baseY;
-          if (anchorY < minTopY) {
-            minTopY = anchorY;
-          }
-        }
-        if (Number.isFinite(minTopY)) {
-          if (reportedTopYRef.current === null || Math.abs(reportedTopYRef.current - minTopY) > 1) {
-            reportedTopYRef.current = minTopY;
-            onTopAnchorChange(minTopY);
-          }
-        }
+      updateGraphDom(nodes, pulseTime);
+
+      if (shouldAnimate) {
+        animFrameRef.current = requestAnimationFrame(tick);
       }
-
-      graph.edges.forEach((edge, index) => {
-        const fromIndex = keyToIndex.get(edge.fromKey);
-        const toIndex = keyToIndex.get(edge.toKey);
-        if (fromIndex === undefined || toIndex === undefined) {
-          return;
-        }
-
-        const from = nodes[fromIndex];
-        const to = nodes[toIndex];
-        if (!from || !to) {
-          return;
-        }
-
-        const edgeGroup = edgeGroupRefs.current[index];
-        if (edgeGroup) {
-          const lines = edgeGroup.querySelectorAll('line');
-          lines.forEach((line) => {
-            line.setAttribute('x1', from.x.toFixed(2));
-            line.setAttribute('y1', from.y.toFixed(2));
-            line.setAttribute('x2', to.x.toFixed(2));
-            line.setAttribute('y2', to.y.toFixed(2));
-          });
-        }
-
-        const pulse = pulseRefs.current[index];
-        if (!pulse) {
-          return;
-        }
-
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        const dashLen = Math.max(26, len * 0.18);
-        const speed = 38 * wireSpeed;
-        const offset = -(((pulseTime * speed) % (len + dashLen)) - dashLen);
-
-        pulse.setAttribute('x1', from.x.toFixed(2));
-        pulse.setAttribute('y1', from.y.toFixed(2));
-        pulse.setAttribute('x2', to.x.toFixed(2));
-        pulse.setAttribute('y2', to.y.toFixed(2));
-        pulse.setAttribute('stroke-dasharray', `${dashLen} ${len}`);
-        pulse.setAttribute('stroke-dashoffset', offset.toFixed(2));
-      });
-
-      animFrameRef.current = requestAnimationFrame(tick);
     };
 
     animFrameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [graph.edges, keyToIndex, nodeDrift, onTopAnchorChange, wireSpeed]);
+  }, [nodeDrift, updateGraphDom, wireSpeed]);
 
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current;
@@ -556,8 +581,9 @@ export default function ConstellationGraph({
       }
       node.x = startNodeX + dx;
       node.y = startNodeY + dy;
+      updateGraphDom(physicsRef.current);
     },
-    [getSvgPoint]
+    [getSvgPoint, updateGraphDom]
   );
 
   const handlePointerUp = useCallback(() => {
@@ -580,7 +606,8 @@ export default function ConstellationGraph({
       }
     }
     dragRef.current = null;
-  }, []);
+    updateGraphDom(physicsRef.current);
+  }, [updateGraphDom]);
 
   const nodeLayouts = graph.nodes.map((graphNode) => {
     const maxTextWidth = graphNode.node.isStart || graphNode.node.isEnd
@@ -608,21 +635,6 @@ export default function ConstellationGraph({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      <defs>
-        <filter id="edgeGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-        <filter id="nodeGlow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-        <filter id="nodeGlowStrong" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="8" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
-
       {graph.edges.map((edge, index) => {
         const fromIndex = keyToIndex.get(edge.fromKey);
         const toIndex = keyToIndex.get(edge.toKey);
@@ -655,7 +667,6 @@ export default function ConstellationGraph({
               y2={toPosition.y}
               stroke={`rgba(200,205,230,${glowOpacity})`}
               strokeWidth={width + 1}
-              filter="url(#edgeGlow)"
               style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
             />
             <line
@@ -671,32 +682,33 @@ export default function ConstellationGraph({
         );
       })}
 
-      {graph.edges.map((edge, index) => {
-        const fromIndex = keyToIndex.get(edge.fromKey);
-        const toIndex = keyToIndex.get(edge.toKey);
-        const from = fromIndex === undefined ? null : graph.positions[fromIndex];
-        const to = toIndex === undefined ? null : graph.positions[toIndex];
-        if (!from || !to) {
-          return null;
-        }
+      {wireSpeed > 0 &&
+        graph.edges.map((edge, index) => {
+          const fromIndex = keyToIndex.get(edge.fromKey);
+          const toIndex = keyToIndex.get(edge.toKey);
+          const from = fromIndex === undefined ? null : graph.positions[fromIndex];
+          const to = toIndex === undefined ? null : graph.positions[toIndex];
+          if (!from || !to) {
+            return null;
+          }
 
-        const routeShare = edge.routeHits / Math.max(1, result.displayedRoutes || graph.edges.length);
-        return (
-          <line
-            key={`pulse-${edge.key}`}
-            ref={(element) => {
-              pulseRefs.current[index] = element;
-            }}
-            x1={from.x}
-            y1={from.y}
-            x2={to.x}
-            y2={to.y}
-            stroke={`rgba(240,242,255,${0.18 + routeShare * 0.28})`}
-            strokeWidth={1.2 + routeShare}
-            strokeLinecap="round"
-          />
-        );
-      })}
+          const routeShare = edge.routeHits / Math.max(1, result.displayedRoutes || graph.edges.length);
+          return (
+            <line
+              key={`pulse-${edge.key}`}
+              ref={(element) => {
+                pulseRefs.current[index] = element;
+              }}
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
+              stroke={`rgba(240,242,255,${0.18 + routeShare * 0.28})`}
+              strokeWidth={1.2 + routeShare}
+              strokeLinecap="round"
+            />
+          );
+        })}
 
       {graph.nodes.map((graphNode, index) => {
         const layout = nodeLayouts[index]!;
@@ -717,9 +729,12 @@ export default function ConstellationGraph({
         const nodeOpacity = isHovered ? 1 : isAdjacentToHovered ? 0.88 : 0.72;
         const borderOpacity = isHovered ? 0.95 : isSpecial ? 0.72 : 0.28 + (graphNode.routeHits / 5) * 0.24;
         const scaleFactor = isSpecial ? 1.08 : 1;
-        const width = layout.w * scaleFactor;
-        const height = layout.h * (isSpecial ? 1.12 : 1);
-        const fontSize = isSpecial ? 13.5 : 12;
+        const compactNodeScale = isCompactLayout ? 1.55 : 1;
+        const width = layout.w * scaleFactor * compactNodeScale;
+        const height = layout.h * (isSpecial ? 1.12 : 1) * compactNodeScale;
+        const fontSize = (isSpecial ? 13.5 : 12) * compactNodeScale;
+        const lineHeight = layout.lineHeight * compactNodeScale;
+        const smallLabelSize = 8 * compactNodeScale;
 
         return (
           <g
@@ -748,7 +763,6 @@ export default function ConstellationGraph({
                 height={height}
                 rx={3}
                 fill="rgba(240,242,255,0.06)"
-                filter="url(#nodeGlowStrong)"
               />
             )}
             {isHovered && (
@@ -759,7 +773,6 @@ export default function ConstellationGraph({
                 height={height + 8}
                 rx={4}
                 fill="rgba(220,225,255,0.04)"
-                filter="url(#nodeGlow)"
               />
             )}
             <rect
@@ -785,7 +798,7 @@ export default function ConstellationGraph({
                 x={-width / 2 + 4}
                 y={-height / 2 - 4}
                 fill="rgba(160,165,200,0.45)"
-                fontSize="8"
+                fontSize={smallLabelSize}
                 fontFamily="var(--font-azeret), monospace"
                 letterSpacing="0.5"
               >
@@ -797,7 +810,7 @@ export default function ConstellationGraph({
                 x={0}
                 y={-height / 2 - 5}
                 fill="rgba(200,205,240,0.68)"
-                fontSize="8"
+                fontSize={smallLabelSize}
                 fontFamily="var(--font-azeret), monospace"
                 textAnchor="middle"
                 letterSpacing="1.5"
@@ -810,7 +823,7 @@ export default function ConstellationGraph({
                 x={width / 2 - 4}
                 y={-height / 2 - 4}
                 fill="rgba(180,185,220,0.55)"
-                fontSize="8"
+                fontSize={smallLabelSize}
                 fontFamily="var(--font-azeret), monospace"
                 textAnchor="end"
                 letterSpacing="0.5"
@@ -831,9 +844,9 @@ export default function ConstellationGraph({
             >
               {layout.lines.map((line, lineIndex) => {
                 const offset =
-                  (lineIndex - (layout.lines.length - 1) / 2) * layout.lineHeight;
+                  (lineIndex - (layout.lines.length - 1) / 2) * lineHeight;
                 return (
-                  <tspan key={`${graphNode.key}-${lineIndex}`} x={0} dy={lineIndex === 0 ? offset : layout.lineHeight}>
+                  <tspan key={`${graphNode.key}-${lineIndex}`} x={0} dy={lineIndex === 0 ? offset : lineHeight}>
                     {line}
                   </tspan>
                 );

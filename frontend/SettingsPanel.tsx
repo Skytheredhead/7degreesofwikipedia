@@ -289,8 +289,8 @@ export default function SettingsPanel({
         />
         <SliderRow
           label="Wire speed"
-          valueLabel={`${wireSpeed.toFixed(2)}x`}
-          min={0.4}
+          valueLabel={wireSpeed === 0 ? 'Off' : `${wireSpeed.toFixed(2)}x`}
+          min={0}
           max={1.6}
           step={0.1}
           value={wireSpeed}
@@ -298,7 +298,7 @@ export default function SettingsPanel({
         />
         <SliderRow
           label="Node drift"
-          valueLabel={`${Math.round(nodeDrift * 100)}%`}
+          valueLabel={nodeDrift === 0 ? 'Off' : `${Math.round(nodeDrift * 100)}%`}
           min={0}
           max={1.5}
           step={0.1}

@@ -276,10 +276,12 @@ function buildSearchHelper(
 
 function ResultMeta({
   result,
-  totalNodes
+  totalNodes,
+  isMobileLayout = false
 }: {
   result: SearchResult | null;
   totalNodes: number;
+  isMobileLayout?: boolean;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -354,10 +356,10 @@ function ResultMeta({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 10,
+        gap: isMobileLayout ? 6 : 10,
         fontFamily: 'var(--font-azeret), monospace',
-        fontSize: 10,
-        letterSpacing: '0.8px',
+        fontSize: isMobileLayout ? 8.5 : 10,
+        letterSpacing: isMobileLayout ? '0.6px' : '0.8px',
         color: 'rgba(150,155,185,0.72)',
         userSelect: 'none',
         overflow: 'visible',
@@ -425,18 +427,32 @@ function ResultMeta({
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 14,
+          gap: isMobileLayout ? 6 : 14,
         }}
       >
-        <span style={{ color: 'rgba(224,228,250,0.95)' }}>{formatMs(liveElapsedMs)}</span>
-        <span>first path in {formatMs(result.diagnostics.firstRouteMs)}</span>
+        <span
+          style={{
+            color: 'rgba(224,228,250,0.95)',
+            ...(isMobileLayout
+              ? {
+                  padding: '3px 6px',
+                  border: '1px solid rgba(150,155,190,0.16)',
+                  borderRadius: 4,
+                  background: 'rgba(8,9,18,0.34)',
+                }
+              : {}),
+          }}
+        >
+          {formatMs(liveElapsedMs)}
+        </span>
+        <span>first {formatMs(result.diagnostics.firstRouteMs)}</span>
         <span>{result.pathLength} hops</span>
         <span>{totalRoutesLabel}</span>
         <span
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
+            gap: isMobileLayout ? 4 : 6,
           }}
         >
           <span>{result.nodesVisited.toLocaleString()} nodes visited</span>
@@ -729,8 +745,8 @@ export default function Home() {
   const [readiness, setReadiness] = useState<ReadinessState | null>(null);
   const [graphScale, setGraphScale] = useState(1);
   const [routeLimit, setRouteLimit] = useState(5);
-  const [wireSpeed, setWireSpeed] = useState(1);
-  const [nodeDrift, setNodeDrift] = useState(1);
+  const [wireSpeed, setWireSpeed] = useState(0);
+  const [nodeDrift, setNodeDrift] = useState(0);
   const [disallowNewsSites, setDisallowNewsSites] = useState(false);
   const [graphTopAnchorY, setGraphTopAnchorY] = useState<number | null>(null);
   const [graphViewportSize, setGraphViewportSize] = useState({ width: 0, height: 0 });
@@ -1073,6 +1089,7 @@ export default function Home() {
   const isMobileLayout = viewportWidth > 0 ? viewportWidth <= 768 : false;
   const hasResultLayout = Boolean(result);
   const hasGraph = Boolean(displayResult?.success && displayResult.path.length > 0);
+  const hasMobileGraphLayout = isMobileLayout && hasGraph;
   const helper = buildSearchHelper(displayResult, readiness, {
     disallowNewsSites,
     allRoutesFiltered: displayState.allRoutesFiltered,
@@ -1111,12 +1128,12 @@ export default function Home() {
           zIndex: 1,
           width: '100%',
           minHeight: isMobileLayout ? '100svh' : '100vh',
-          display: isMobileLayout && !hasGraph ? 'flex' : undefined,
-          flexDirection: isMobileLayout && !hasGraph ? 'column' : undefined,
+          display: isMobileLayout ? 'flex' : undefined,
+          flexDirection: isMobileLayout ? 'column' : undefined,
           overflowX: 'hidden',
           overflowY: isMobileLayout ? 'auto' : 'hidden',
-          paddingTop: isMobileLayout ? 'calc(20px + env(safe-area-inset-top))' : 0,
-          paddingBottom: isMobileLayout ? 'calc(116px + env(safe-area-inset-bottom))' : 0,
+          paddingTop: isMobileLayout ? `calc(${hasGraph ? 12 : 20}px + env(safe-area-inset-top))` : 0,
+          paddingBottom: isMobileLayout ? 'calc(102px + env(safe-area-inset-bottom))' : 0,
         }}
       >
         <div
@@ -1129,7 +1146,7 @@ export default function Home() {
             display: 'flex',
             justifyContent: 'center',
             pointerEvents: 'none',
-            padding: isMobileLayout ? '44px 20px 0' : 0,
+            padding: isMobileLayout ? `${hasGraph ? 20 : 44}px 20px 0` : 0,
           }}
         >
           <button
@@ -1141,13 +1158,17 @@ export default function Home() {
               cursor: 'pointer',
               fontFamily: 'var(--font-syne), sans-serif',
               fontWeight: 800,
-              fontSize: isMobileLayout ? 'clamp(2.25rem, 7.8vw, 3rem)' : 24,
-              letterSpacing: isMobileLayout ? '-1.1px' : '-0.5px',
+              fontSize: isMobileLayout
+                ? hasGraph
+                  ? 'clamp(1.6rem, 6vw, 2.15rem)'
+                  : 'clamp(2.25rem, 7.8vw, 3rem)'
+                : 24,
+              letterSpacing: isMobileLayout ? (hasGraph ? '-0.7px' : '-1.1px') : '-0.5px',
               color: isMobileLayout ? 'rgba(240,242,255,0.96)' : 'rgba(228,230,248,0.88)',
               lineHeight: 1,
               transition: 'color 0.2s, opacity 0.2s',
               textAlign: isMobileLayout ? 'center' : 'left',
-              maxWidth: isMobileLayout ? 360 : undefined,
+              maxWidth: isMobileLayout ? (hasGraph ? 320 : 360) : undefined,
               textWrap: 'balance',
               textShadow: isMobileLayout ? '0 0 28px rgba(132, 142, 208, 0.16)' : 'none',
               pointerEvents: 'auto',
@@ -1178,8 +1199,8 @@ export default function Home() {
             justifyContent: 'center',
             flex: isMobileLayout && !hasGraph ? '1 1 auto' : undefined,
             top: isMobileLayout ? undefined : searchTop,
-            marginTop: isMobileLayout ? (hasGraph ? 28 : 0) : 0,
-            padding: isMobileLayout ? '0 20px' : 0,
+            marginTop: isMobileLayout ? (hasGraph ? 24 : 0) : 0,
+            padding: isMobileLayout ? '0 16px' : 0,
           }}
         >
           <motion.div
@@ -1193,7 +1214,7 @@ export default function Home() {
               width: isMobileLayout ? 'min(420px, 100%)' : 'min(720px, 92vw)',
               display: 'flex',
               flexDirection: 'column',
-              gap: isMobileLayout ? 12 : 14,
+              gap: isMobileLayout ? (hasGraph ? 8 : 12) : 14,
             }}
           >
             <SearchUI
@@ -1215,8 +1236,13 @@ export default function Home() {
               helperTone={helper.tone}
               getSuggestions={fetchArticleSuggestions}
               isCompactLayout={isMobileLayout}
+              isResultLayout={hasMobileGraphLayout}
             />
-            <ResultMeta result={displayResult} totalNodes={readiness?.totalNodes ?? 0} />
+            <ResultMeta
+              result={displayResult}
+              totalNodes={readiness?.totalNodes ?? 0}
+              isMobileLayout={isMobileLayout}
+            />
           </motion.div>
         </div>
 
@@ -1230,10 +1256,11 @@ export default function Home() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: isMobileLayout ? '0 20px' : '0 24px',
-            marginTop: isMobileLayout ? (hasGraph ? 28 : 0) : 0,
-            minHeight: isMobileLayout && hasGraph ? 280 : 0,
-            height: isMobileLayout ? (hasGraph ? 'min(46svh, 380px)' : 0) : undefined,
+            padding: isMobileLayout ? '0 8px' : '0 24px',
+            marginTop: isMobileLayout ? (hasGraph ? 12 : 0) : 0,
+            flex: hasMobileGraphLayout ? '1 1 auto' : undefined,
+            minHeight: hasMobileGraphLayout ? 250 : 0,
+            height: isMobileLayout ? (hasGraph ? undefined : 0) : undefined,
           }}
         >
           <AnimatePresence mode="wait">
@@ -1257,6 +1284,7 @@ export default function Home() {
                   onTopAnchorChange={setGraphTopAnchorY}
                   wireSpeed={wireSpeed}
                   nodeDrift={nodeDrift}
+                  isCompactLayout={isMobileLayout}
                 />
               </motion.div>
             ) : null}
