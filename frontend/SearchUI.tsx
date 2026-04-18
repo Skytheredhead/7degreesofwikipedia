@@ -242,7 +242,14 @@ function InputField({
     suggestions.length > 0 && suggestionsQuery === value.trim().toLowerCase();
 
   return (
-    <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 0, width: isCompactLayout ? '100%' : undefined }}>
+    <div
+      style={{
+        position: 'relative',
+        flex: isCompactLayout ? '0 0 auto' : '1 1 240px',
+        minWidth: 0,
+        width: isCompactLayout ? '100%' : undefined,
+      }}
+    >
       <div
         style={{
           position: 'absolute',
