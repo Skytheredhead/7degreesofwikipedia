@@ -147,6 +147,12 @@ the graph, starts `7wiki-backend.service` for real API traffic, and stops it aft
 `deploy/7wiki-backend.service.example` and
 `deploy/7wiki-lazy-proxy.service.example`.
 
+Before a cold start, the proxy requires 12 GiB of `MemAvailable` by default. A
+low-memory server gets an `insufficient_memory` 503 and the frontend shows the
+reason instead of starting the graph. Override the preflight threshold with
+`MIN_AVAILABLE_MEMORY_BYTES`. The example backend unit also caps the graph at
+12 GiB and prevents it from consuming swap.
+
 That means your tunnel should forward:
 
 1. Public hostname like `https://wiki-api.yourdomain.com`

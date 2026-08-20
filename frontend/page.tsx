@@ -766,6 +766,7 @@ export default function Home() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchRateLimitMessage, setSearchRateLimitMessage] = useState<string | null>(null);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [stats, setStats] = useState<StatData>(createEmptyStats());
   const [readiness, setReadiness] = useState<ReadinessState | null>(null);
@@ -785,6 +786,7 @@ export default function Home() {
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchRunIdRef = useRef(0);
+  const dismissedStartupErrorRef = useRef<string | null>(null);
 
   const refreshBackendState = useCallback(async () => {
     const [statsResult, readinessResult] = await Promise.allSettled([
@@ -827,8 +829,23 @@ export default function Home() {
         return;
       }
       heartbeatController?.abort();
-      heartbeatController = new AbortController();
-      void sendLiveHeartbeat(heartbeatController.signal).catch(() => undefined);
+      const controller = new AbortController();
+      heartbeatController = controller;
+      void sendLiveHeartbeat(controller.signal)
+        .then(() => {
+          dismissedStartupErrorRef.current = null;
+          setStartupError(null);
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          const message =
+            error instanceof Error ? error.message : '7wiki could not start on the server.';
+          if (dismissedStartupErrorRef.current !== message) {
+            setStartupError(message);
+          }
+        });
     };
 
     heartbeat();
@@ -1201,6 +1218,71 @@ export default function Home() {
   return (
     <>
       <Background />
+      <AnimatePresence>
+        {startupError && (
+          <motion.div
+            role="alert"
+            aria-live="assertive"
+            initial={{ opacity: 0, y: -18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'fixed',
+              top: 'calc(20px + env(safe-area-inset-top))',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 1000,
+              width: 'min(520px, calc(100vw - 32px))',
+              padding: '16px 48px 16px 18px',
+              border: '1px solid rgba(255, 128, 128, 0.42)',
+              borderRadius: 14,
+              background: 'rgba(24, 14, 25, 0.96)',
+              boxShadow: '0 18px 60px rgba(0, 0, 0, 0.46)',
+              backdropFilter: 'blur(18px)',
+              color: 'rgba(255, 232, 232, 0.96)',
+              fontFamily: 'var(--font-azeret), monospace',
+            }}
+          >
+            <div
+              style={{
+                marginBottom: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              7wiki can’t start
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(255, 214, 214, 0.86)' }}>
+              {startupError}
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss startup error"
+              onClick={() => {
+                dismissedStartupErrorRef.current = startupError;
+                setStartupError(null);
+              }}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 12,
+                border: 0,
+                background: 'transparent',
+                color: 'rgba(255, 232, 232, 0.72)',
+                cursor: 'pointer',
+                padding: 6,
+                fontSize: 20,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         style={{
           position: 'relative',

@@ -439,7 +439,14 @@ export async function sendLiveHeartbeat(signal?: AbortSignal): Promise<void> {
     signal
   });
   if (!response.ok) {
-    throw new Error(`Live heartbeat failed with status ${response.status}`);
+    let message = `7wiki could not start (status ${response.status}).`;
+    try {
+      const error = (await response.json()) as { message?: string };
+      message = error.message ?? message;
+    } catch {
+      // Ignore JSON parsing errors and keep the clear status fallback.
+    }
+    throw new Error(message);
   }
 }
 

@@ -12,4 +12,5 @@ ExecStart=/usr/bin/env bash %h/Documents/GitHub/7degreesofwikipedia/deploy/start
 Restart=on-failure
 RestartSec=10
 TimeoutStopSec=30
-
+MemoryMax=12G
+MemorySwapMax=0

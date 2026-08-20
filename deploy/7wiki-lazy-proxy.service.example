@@ -11,6 +11,7 @@ Environment=BACKEND_PORT=7879
 Environment=BACKEND_UNIT=7wiki-backend.service
 Environment=IDLE_TIMEOUT_MS=90000
 Environment=START_TIMEOUT_MS=120000
+Environment=MIN_AVAILABLE_MEMORY_BYTES=12884901888
 ExecStart=/usr/bin/node %h/Documents/GitHub/7degreesofwikipedia/deploy/lazy-proxy.mjs
 Restart=always
 RestartSec=5

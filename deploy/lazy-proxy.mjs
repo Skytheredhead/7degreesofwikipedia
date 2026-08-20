@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import http from "node:http";
 import { promisify } from "node:util";
 
@@ -11,6 +12,13 @@ const backendPort = Number(process.env.BACKEND_PORT ?? 7879);
 const backendUnit = process.env.BACKEND_UNIT ?? "7wiki-backend.service";
 const idleTimeoutMs = Number(process.env.IDLE_TIMEOUT_MS ?? 90_000);
 const startTimeoutMs = Number(process.env.START_TIMEOUT_MS ?? 120_000);
+const minAvailableMemoryBytes = Number(
+  process.env.MIN_AVAILABLE_MEMORY_BYTES ?? 12 * 1024 ** 3,
+);
+
+if (!Number.isFinite(minAvailableMemoryBytes) || minAvailableMemoryBytes <= 0) {
+  throw new Error("MIN_AVAILABLE_MEMORY_BYTES must be a positive number.");
+}
 
 const hopByHopHeaders = new Set([
   "connection",
@@ -27,6 +35,44 @@ let activeRequests = 0;
 let lastLiveActivityAt = 0;
 let startPromise = null;
 let stopPromise = null;
+
+class InsufficientMemoryError extends Error {
+  constructor(availableBytes, requiredBytes) {
+    super(
+      `7wiki needs at least ${formatGiB(requiredBytes)} GiB of available memory to start, ` +
+        `but only ${formatGiB(availableBytes)} GiB is available. ` +
+        "Try again after other server workloads stop.",
+    );
+    this.name = "InsufficientMemoryError";
+    this.availableBytes = availableBytes;
+    this.requiredBytes = requiredBytes;
+  }
+}
+
+function formatGiB(bytes) {
+  return (bytes / 1024 ** 3).toFixed(1);
+}
+
+async function readMemoryStatus() {
+  const meminfo = await readFile("/proc/meminfo", "utf8");
+  const availableMatch = meminfo.match(/^MemAvailable:\s+(\d+)\s+kB$/m);
+  const totalMatch = meminfo.match(/^MemTotal:\s+(\d+)\s+kB$/m);
+  if (!availableMatch || !totalMatch) {
+    throw new Error("Unable to determine available server memory from /proc/meminfo.");
+  }
+
+  return {
+    availableBytes: Number(availableMatch[1]) * 1024,
+    totalBytes: Number(totalMatch[1]) * 1024,
+  };
+}
+
+async function assertEnoughMemoryToStart() {
+  const memory = await readMemoryStatus();
+  if (memory.availableBytes < minAvailableMemoryBytes) {
+    throw new InsufficientMemoryError(memory.availableBytes, minAvailableMemoryBytes);
+  }
+}
 
 async function systemctl(...args) {
   return execFileAsync("systemctl", ["--user", ...args], { timeout: startTimeoutMs });
@@ -75,7 +121,10 @@ async function ensureBackend() {
   if (await backendAcceptsConnections()) return;
   if (!startPromise) {
     startPromise = (async () => {
-      await systemctl("start", backendUnit);
+      if (!(await backendIsActive())) {
+        await assertEnoughMemoryToStart();
+        await systemctl("start", backendUnit);
+      }
       await waitForBackend();
     })().finally(() => {
       startPromise = null;
@@ -107,36 +156,88 @@ async function stopBackendIfIdle() {
     });
 }
 
-function sendJson(response, statusCode, payload) {
+function sendJson(response, statusCode, payload, extraHeaders = {}) {
   const body = Buffer.from(JSON.stringify(payload));
   response.writeHead(statusCode, {
     "cache-control": "no-store",
     "content-length": String(body.length),
     "content-type": "application/json; charset=utf-8",
+    ...extraHeaders,
   });
   response.end(body);
 }
 
+function corsHeaders(request) {
+  return {
+    "access-control-allow-origin": request.headers.origin ?? "*",
+    vary: "Origin",
+  };
+}
+
+function sendStartFailure(request, response, error) {
+  if (error instanceof InsufficientMemoryError) {
+    sendJson(
+      response,
+      503,
+      {
+        ok: false,
+        error: "insufficient_memory",
+        message: error.message,
+        memory: {
+          availableBytes: error.availableBytes,
+          requiredBytes: error.requiredBytes,
+        },
+      },
+      corsHeaders(request),
+    );
+    return;
+  }
+
+  const message = error instanceof Error ? error.message : "Unable to start 7wiki backend.";
+  sendJson(
+    response,
+    503,
+    { ok: false, error: "backend_start_failed", message },
+    corsHeaders(request),
+  );
+}
+
 async function handleHealth(request, response) {
   const state = (await backendIsActive()) ? "awake" : "sleeping";
+  let memory;
+  try {
+    const currentMemory = await readMemoryStatus();
+    memory = {
+      ...currentMemory,
+      requiredBytes: minAvailableMemoryBytes,
+      canStart: state === "awake" || currentMemory.availableBytes >= minAvailableMemoryBytes,
+    };
+  } catch (error) {
+    memory = {
+      availableBytes: null,
+      requiredBytes: minAvailableMemoryBytes,
+      canStart: state === "awake",
+      error: error instanceof Error ? error.message : "Unable to read server memory.",
+    };
+  }
   sendJson(response, 200, {
     ok: true,
     status: {
       lazy: true,
       state,
       idleTimeoutMs,
+      memory,
     },
   });
 }
 
 async function handleHeartbeat(request, response) {
-  lastLiveActivityAt = Date.now();
   await ensureBackend();
+  lastLiveActivityAt = Date.now();
   response.writeHead(204, {
     "access-control-allow-methods": "POST, OPTIONS",
-    "access-control-allow-origin": request.headers.origin ?? "*",
     "cache-control": "no-store",
-    vary: "Origin",
+    ...corsHeaders(request),
   });
   response.end();
 }
@@ -216,12 +317,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    lastLiveActivityAt = Date.now();
     await ensureBackend();
+    lastLiveActivityAt = Date.now();
     proxyToBackend(request, response);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to start 7wiki backend.";
-    sendJson(response, 503, { ok: false, error: "backend_start_failed", message });
+    sendStartFailure(request, response, error);
   }
 });
 
