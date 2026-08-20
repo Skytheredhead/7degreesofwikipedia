@@ -8,7 +8,13 @@ import ConstellationGraph from './ConstellationGraph';
 import SearchUI from './SearchUI';
 import SettingsPanel, { SettingsButton } from './SettingsPanel';
 import StatsPanel, { StatsButton } from './StatsPanel';
-import { fetchArticleSuggestions, fetchReadiness, fetchStatsOverview, runPathSearchProgressive } from './lib/api';
+import {
+  fetchArticleSuggestions,
+  fetchReadiness,
+  fetchStatsOverview,
+  runPathSearchProgressive,
+  sendLiveHeartbeat
+} from './lib/api';
 import type {
   ArticleNode,
   ReadinessState,
@@ -812,6 +818,29 @@ export default function Home() {
   useEffect(() => {
     void refreshBackendState();
   }, [refreshBackendState]);
+
+  useEffect(() => {
+    let heartbeatController: AbortController | null = null;
+
+    const heartbeat = () => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      heartbeatController?.abort();
+      heartbeatController = new AbortController();
+      void sendLiveHeartbeat(heartbeatController.signal).catch(() => undefined);
+    };
+
+    heartbeat();
+    const intervalId = window.setInterval(heartbeat, 25_000);
+    document.addEventListener('visibilitychange', heartbeat);
+
+    return () => {
+      heartbeatController?.abort();
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', heartbeat);
+    };
+  }, []);
 
   useEffect(() => {
     if (readiness?.status === 'ready') {

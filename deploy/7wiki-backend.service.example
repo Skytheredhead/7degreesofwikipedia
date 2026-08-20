@@ -1,0 +1,15 @@
+[Unit]
+Description=Seven Degrees Wikipedia backend (on demand)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documents/GitHub/7degreesofwikipedia
+Environment=HOST=127.0.0.1
+Environment=PORT=7879
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env bash %h/Documents/GitHub/7degreesofwikipedia/deploy/start-backend.sh
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+

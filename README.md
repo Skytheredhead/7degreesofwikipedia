@@ -140,6 +140,13 @@ HOST=0.0.0.0 PORT=7878 bash deploy/start-backend.sh
 
 Expose the backend port, which is `7878` by default.
 
+For the production server, `deploy/lazy-proxy.mjs` can own port `7878` while the
+full graph backend listens on `7879`. The proxy answers `/health` without waking
+the graph, starts `7wiki-backend.service` for real API traffic, and stops it after
+90 seconds without a visible-page heartbeat. Example user units are provided in
+`deploy/7wiki-backend.service.example` and
+`deploy/7wiki-lazy-proxy.service.example`.
+
 That means your tunnel should forward:
 
 1. Public hostname like `https://wiki-api.yourdomain.com`

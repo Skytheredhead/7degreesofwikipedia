@@ -432,6 +432,17 @@ export async function runPathSearchProgressive(
   }
 }
 
+export async function sendLiveHeartbeat(signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${backendBaseUrl()}/live`, {
+    method: "POST",
+    cache: "no-store",
+    signal
+  });
+  if (!response.ok) {
+    throw new Error(`Live heartbeat failed with status ${response.status}`);
+  }
+}
+
 export async function fetchReadiness(): Promise<ReadinessState> {
   const payload = await apiFetch<BackendReadinessResponse>("/api/readiness");
   return {
